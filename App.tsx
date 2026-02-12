@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { UserRole, DefaultUserRole, Client, Task, User, MonthlyData, ClientStatus, SalesGoal, ChatMessage, ClientHealth, DriveItem } from './types';
 import { INITIAL_CLIENTS, NAVIGATION_ITEMS, MANAGERS, MONTHS } from './constants';
@@ -12,25 +11,33 @@ import SalesView from './components/SalesView';
 import WikiView from './components/WikiView';
 import Auth from './components/Auth';
 import { dbService } from './services/database';
-import { Hash } from 'lucide-react';
+import { Hash, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const currentYear = new Date().getFullYear();
   const currentMonthName = MONTHS[new Date().getMonth()];
   const monthKey = `${currentMonthName} ${currentYear}`;
 
-  //currentUser começa como null para forçar o login
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSynced, setIsSynced] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(monthKey);
   const [chatInput, setChatInput] = useState('');
 
   const [availableRoles, setAvailableRoles] = useState<string[]>(Object.values(DefaultUserRole));
-  const [team, setTeam] = useState<User[]>([
-    { id: 'ceo-master', name: 'Diretoria Ômega', email: 'admin@omega.com', password: 'admin', role: DefaultUserRole.CEO, isActive: true },
-    { id: 'm1', name: 'Ricardo Tráfego', email: 'ricardo@omega.com', role: DefaultUserRole.MANAGER, isActive: true }
-  ]);
+  
+  // Definição padrão do CEO para garantir acesso imediato
+  const CEO_DEFAULT: User = { 
+    id: 'ceo-master', 
+    name: 'Diretoria Ômega', 
+    email: 'assessoriaomega1@gmail.com', 
+    password: 'admin', 
+    role: DefaultUserRole.CEO, 
+    isActive: true 
+  };
+
+  const [team, setTeam] = useState<User[]>([CEO_DEFAULT]);
   
   const [db, setDb] = useState<MonthlyData>({
     [monthKey]: {
@@ -43,18 +50,43 @@ const App: React.FC = () => {
     }
   });
 
+  // Carregamento Inicial com Fallback Robusto
   useEffect(() => {
-    const saved = dbService.loadState();
-    if (saved) {
-      setTeam(saved.team);
-      setAvailableRoles(saved.availableRoles);
-      setDb(saved.db);
-    }
+    const initApp = async () => {
+      setIsLoading(true);
+      try {
+        const saved = await dbService.loadState();
+        if (saved) {
+          // Garante que o CEO assessoriaomega1@gmail.com SEMPRE esteja no time, mesmo se o banco estiver vazio
+          const otherMembers = saved.team.filter(u => u.email.toLowerCase() !== CEO_DEFAULT.email.toLowerCase());
+          setTeam([CEO_DEFAULT, ...otherMembers]);
+          setAvailableRoles(saved.availableRoles);
+          setDb(saved.db);
+          setIsSynced(true);
+        } else {
+          // Se não houver dados, mantém o CEO padrão
+          setTeam([CEO_DEFAULT]);
+        }
+      } catch (err) {
+        console.error("Erro crítico na inicialização:", err);
+        setTeam([CEO_DEFAULT]); // Fallback para permitir login em qualquer situação
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    initApp();
   }, []);
 
+  // Sincronização automática com debouncing
   useEffect(() => {
-    dbService.saveState({ team, availableRoles, db });
-  }, [team, availableRoles, db]);
+    if (!isLoading) {
+      const saveTimeout = setTimeout(async () => {
+        const success = await dbService.saveState({ team, availableRoles, db });
+        setIsSynced(success);
+      }, 800);
+      return () => clearTimeout(saveTimeout);
+    }
+  }, [team, availableRoles, db, isLoading]);
 
   const currentData = db[selectedMonth] || { 
     clients: [], 
@@ -78,6 +110,19 @@ const App: React.FC = () => {
     setTeam(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center gap-6">
+        <div className="w-16 h-16 bg-[#14b8a6] rounded-2xl flex items-center justify-center animate-pulse">
+          <span className="text-black font-black text-3xl">Ω</span>
+        </div>
+        <div className="flex items-center gap-3 text-teal-500 font-black uppercase tracking-[0.3em] text-[10px]">
+          <Loader2 className="w-4 h-4 animate-spin" /> Sincronizando Sistemas Ômega
+        </div>
+      </div>
+    );
+  }
+
   const renderContent = () => {
     if (!currentUser) return null;
     
@@ -89,19 +134,13 @@ const App: React.FC = () => {
           onUpdateRole={(id, r) => setTeam(prev => prev.map(u => u.id === id ? { ...u, role: r } : u))}
           onAddMember={(name, role, email) => {
             const exists = team.some(u => u.email.toLowerCase() === email.toLowerCase());
-            if(exists) {
-              alert("Este email já está cadastrado.");
-              return;
-            }
-            setTeam(prev => [...prev, { 
-              id: Math.random().toString(36).substr(2, 9), 
-              name, 
-              email: email.toLowerCase(), 
-              role, 
-              isActive: true 
-            }]);
+            if(exists) { alert("Este email já está cadastrado."); return; }
+            setTeam(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), name, email: email.toLowerCase(), role, isActive: true }]);
           }}
-          onRemoveMember={(id) => setTeam(prev => prev.filter(u => u.id !== id))}
+          onRemoveMember={(id) => {
+            if (id === 'ceo-master') { alert("Acesso de diretoria não pode ser removido."); return; }
+            setTeam(prev => prev.filter(u => u.id !== id));
+          }}
           onAddRole={(role) => setAvailableRoles([...availableRoles, role])}
           onToggleActive={(id) => setTeam(prev => prev.map(u => u.id === id ? { ...u, isActive: !u.isActive } : u))} 
         />
@@ -173,7 +212,13 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-[#0a0a0a] text-gray-300 overflow-hidden font-inter">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} currentUser={currentUser} onLogout={handleLogout} />
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        currentUser={currentUser} 
+        onLogout={handleLogout} 
+        isSynced={isSynced}
+      />
       <main className="flex-1 h-full overflow-hidden relative">
         <div className="h-full overflow-y-auto p-12 custom-scrollbar">{renderContent()}</div>
         <div className="fixed top-[-100px] right-[-100px] w-[700px] h-[700px] bg-[#14b8a6]/5 blur-[180px] rounded-full pointer-events-none -z-10"></div>

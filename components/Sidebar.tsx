@@ -1,18 +1,17 @@
-
 import React from 'react';
 import { NAVIGATION_ITEMS } from '../constants';
 import { UserRole, User, DefaultUserRole } from '../types';
-import { X, Shield, Settings, LogOut } from 'lucide-react';
+import { X, Shield, Settings, LogOut, Cloud, CloudOff } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   currentUser: User;
   onLogout: () => void;
+  isSynced?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, onLogout }) => {
-  // Fix: Cast item.roles to string[] to allow safe comparison with UserRole (which can be a custom string)
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, onLogout, isSynced = false }) => {
   const filteredNav = NAVIGATION_ITEMS.filter(item => 
     (item.roles as string[]).includes(currentUser.role)
   );
@@ -45,24 +44,28 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
         ))}
       </nav>
 
-      <div className="p-4 border-t border-white/5 space-y-6">
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 px-2">
-            <Shield className="w-3 h-3 text-[#14b8a6]" />
-            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Sessão Segura</span>
+      <div className="p-4 border-t border-white/5 space-y-4">
+        {/* Status da Nuvem */}
+        <div className={`flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${isSynced ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full animate-pulse ${isSynced ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`}></div>
+            <span className={`text-[9px] font-black uppercase tracking-widest ${isSynced ? 'text-green-500' : 'text-red-500'}`}>
+              {isSynced ? 'Nuvem Ômega Ativa' : 'Modo Offline'}
+            </span>
           </div>
-          
-          <div className="bg-[#111] border border-white/5 rounded-2xl p-4">
-             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#14b8a6]/10 flex items-center justify-center text-[#14b8a6] text-xs font-black border border-[#14b8a6]/20">
-                  {currentUser.name[0]}
-                </div>
-                <div className="overflow-hidden">
-                  <p className="text-[10px] font-black text-white uppercase truncate">{currentUser.name}</p>
-                  <p className="text-[8px] font-bold text-[#14b8a6] uppercase tracking-widest truncate">{currentUser.role.replace('_', ' ')}</p>
-                </div>
-             </div>
-          </div>
+          {isSynced ? <Cloud className="w-3 h-3 text-green-500" /> : <CloudOff className="w-3 h-3 text-red-500" />}
+        </div>
+
+        <div className="bg-[#111] border border-white/5 rounded-2xl p-4">
+           <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#14b8a6]/10 flex items-center justify-center text-[#14b8a6] text-xs font-black border border-[#14b8a6]/20">
+                {currentUser.name[0]}
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-[10px] font-black text-white uppercase truncate">{currentUser.name}</p>
+                <p className="text-[8px] font-bold text-[#14b8a6] uppercase tracking-widest truncate">{currentUser.role.replace('_', ' ')}</p>
+              </div>
+           </div>
         </div>
 
         <div className="space-y-1">

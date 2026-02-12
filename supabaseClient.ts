@@ -1,15 +1,7 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 
-// Para ativar o Supabase, preencha as constantes abaixo com seus dados do painel do Supabase.
-// Você precisará instalar o pacote: npm install @supabase/supabase-js
-
-/*
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = 'SUA_URL_DO_SUPABASE';
-const supabaseKey = 'SUA_ANON_KEY_DO_SUPABASE';
+// Dados configurados com base no seu projeto 'chzkslqbpmlpepvydacu'
+const supabaseUrl = 'https://chzkslqbpmlpepvydacu.supabase.co'; 
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoemtzbHFicGxtcGVwdnlkYWN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNzgyODMsImV4cCI6MjA4NTY1NDI4M30.a-ot977cQW1uQJwyympfvXrpWkLyUhNuARPFwIV_wDk';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
-*/
-
-// Mock para manter o sistema funcional sem o SDK instalado no ambiente de demonstração
-export const supabase = null;
