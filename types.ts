@@ -32,6 +32,8 @@ export interface DriveItem {
 export interface User {
   id: string;
   name: string;
+  email: string;
+  password?: string;
   role: UserRole;
   isActive: boolean;
   avatar?: string;
@@ -60,7 +62,7 @@ export interface Client {
   notes?: string;
   statusFlag: ClientStatus;
   folder?: ClientFolder;
-  isPaused?: boolean; // Novo: Status de pausa
+  isPaused?: boolean;
 }
 
 export interface Task {
@@ -96,7 +98,8 @@ export interface MonthlyData {
     tasks: Task[];
     salesGoal: SalesGoal;
     chatMessages?: ChatMessage[];
-    drive?: DriveItem[]; // Novo: Drive compartilhado/pessoal
+    drive?: DriveItem[];
+    wiki?: DriveItem[];
   };
 }
 

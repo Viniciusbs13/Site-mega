@@ -9,37 +9,37 @@ import ChecklistView from './components/ChecklistView';
 import ManagerWorkspace from './components/ManagerWorkspace';
 import TeamView from './components/TeamView';
 import SalesView from './components/SalesView';
+import WikiView from './components/WikiView';
+import Auth from './components/Auth';
 import { dbService } from './services/database';
-import { Hash, LogIn, ShieldCheck, UserCircle, LogOut, Lock } from 'lucide-react';
+import { Hash } from 'lucide-react';
 
 const App: React.FC = () => {
   const currentYear = new Date().getFullYear();
   const currentMonthName = MONTHS[new Date().getMonth()];
   const monthKey = `${currentMonthName} ${currentYear}`;
 
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const session = localStorage.getItem('omega_session');
-    return session ? JSON.parse(session) : null;
-  });
+  //currentUser começa como null para forçar o login
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(monthKey);
   const [chatInput, setChatInput] = useState('');
-  const [loginForm, setLoginForm] = useState({ name: '', role: '', password: '' });
-  const [loginError, setLoginError] = useState('');
 
   const [availableRoles, setAvailableRoles] = useState<string[]>(Object.values(DefaultUserRole));
   const [team, setTeam] = useState<User[]>([
-    { id: 'ceo-master', name: 'Diretoria Ômega', role: DefaultUserRole.CEO, isActive: true },
-    { id: 'm1', name: 'Ricardo Tráfego', role: DefaultUserRole.MANAGER, isActive: true }
+    { id: 'ceo-master', name: 'Diretoria Ômega', email: 'admin@omega.com', password: 'admin', role: DefaultUserRole.CEO, isActive: true },
+    { id: 'm1', name: 'Ricardo Tráfego', email: 'ricardo@omega.com', role: DefaultUserRole.MANAGER, isActive: true }
   ]);
+  
   const [db, setDb] = useState<MonthlyData>({
     [monthKey]: {
       clients: INITIAL_CLIENTS,
       tasks: [],
       salesGoal: { monthlyTarget: 100000, monthlySuperTarget: 150000, currentValue: 0, totalSales: 0, contractFormUrl: 'https://seulink.com/onboarding' },
       chatMessages: [],
-      drive: []
+      drive: [],
+      wiki: []
     }
   });
 
@@ -56,127 +56,38 @@ const App: React.FC = () => {
     dbService.saveState({ team, availableRoles, db });
   }, [team, availableRoles, db]);
 
-  useEffect(() => {
-    if (currentUser) {
-      const dbUser = team.find(u => u.id === currentUser.id);
-      if (dbUser && !dbUser.isActive) {
-        handleLogout();
-        alert('Seu acesso foi revogado pelo administrador.');
-      }
-    }
-  }, [team, currentUser]);
-
   const currentData = db[selectedMonth] || { 
     clients: [], 
     tasks: [], 
     salesGoal: { monthlyTarget: 100000, monthlySuperTarget: 150000, currentValue: 0, totalSales: 0, contractFormUrl: 'https://seulink.com/onboarding', salesNotes: '' }, 
     chatMessages: [],
-    drive: []
+    drive: [],
+    wiki: []
   };
 
   const updateCurrentMonthData = (updates: Partial<MonthlyData[string]>) => {
     setDb(prev => ({ ...prev, [selectedMonth]: { ...currentData, ...updates } }));
   };
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-    if (loginForm.role === DefaultUserRole.CEO) {
-      if (loginForm.password === 'AssessoriaOmega') {
-        const ceo = team.find(u => u.role === DefaultUserRole.CEO) || team[0];
-        const sessionUser = { ...ceo, name: loginForm.name || ceo.name };
-        setCurrentUser(sessionUser);
-        localStorage.setItem('omega_session', JSON.stringify(sessionUser));
-      } else {
-        setLoginError('Senha de Diretoria Inválida.');
-      }
-      return;
-    }
-    const user = team.find(u => u.name.toLowerCase() === loginForm.name.toLowerCase() && u.role === loginForm.role);
-    if (user) {
-      if (!user.isActive) {
-        setLoginError('Acesso desativado. Contate o CEO.');
-        return;
-      }
-      setCurrentUser(user);
-      localStorage.setItem('omega_session', JSON.stringify(user));
-    } else {
-      setLoginError('Colaborador não encontrado nesta função.');
-    }
-  };
-
   const handleLogout = () => {
-    localStorage.removeItem('omega_session');
     setCurrentUser(null);
     setActiveTab('dashboard');
   };
 
-  // --- DRIVE LOGIC ---
-  const handleDriveUpdate = (newItems: DriveItem[]) => {
-    updateCurrentMonthData({ drive: newItems });
+  const handleUpdateTeamMember = (updatedUser: User) => {
+    setTeam(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
   };
-
-  // --- CLIENT LOGIC ---
-  const handleRemoveClient = (clientId: string) => {
-    if (confirm('REMOVER CLIENTE DEFINITIVAMENTE?')) {
-      updateCurrentMonthData({ clients: currentData.clients.filter(c => c.id !== clientId) });
-    }
-  };
-
-  const handleTogglePauseClient = (clientId: string) => {
-    updateCurrentMonthData({ 
-      clients: currentData.clients.map(c => c.id === clientId ? { ...c, isPaused: !c.isPaused } : c) 
-    });
-  };
-
-  if (!currentUser) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
-        <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in duration-500">
-          <div className="text-center space-y-4">
-            <div className="w-20 h-20 bg-[#14b8a6] rounded-[24px] flex items-center justify-center mx-auto shadow-[0_20px_50px_rgba(20,184,166,0.3)]">
-              <span className="text-4xl font-black text-black italic">Ω</span>
-            </div>
-            <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase">Terminal Ômega</h1>
-            <p className="text-gray-500 text-sm font-bold tracking-widest uppercase">Sistema de Gestão Restrito</p>
-          </div>
-          <form onSubmit={handleLogin} className="bg-[#111] border border-white/5 p-10 rounded-[48px] shadow-2xl space-y-6 relative overflow-hidden">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><UserCircle className="w-3 h-3"/> Nome Identificador</label>
-                <input required value={loginForm.name} onChange={e => setLoginForm({ ...loginForm, name: e.target.value })} placeholder="Seu nome completo" className="w-full bg-black border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#14b8a6] transition-all" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><ShieldCheck className="w-3 h-3"/> Função</label>
-                <select required value={loginForm.role} onChange={e => setLoginForm({ ...loginForm, role: e.target.value })} className="w-full bg-black border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#14b8a6] transition-all appearance-none cursor-pointer">
-                  <option value="">Selecione seu cargo</option>
-                  {availableRoles.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
-                </select>
-              </div>
-              {loginForm.role === DefaultUserRole.CEO && (
-                <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
-                  <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2"><Lock className="w-3 h-3"/> Senha de Diretoria</label>
-                  <input type="password" required value={loginForm.password} onChange={e => setLoginForm({ ...loginForm, password: e.target.value })} placeholder="••••••••" className="w-full bg-black border border-amber-500/30 rounded-2xl px-6 py-4 text-white outline-none focus:border-amber-500 transition-all" />
-                </div>
-              )}
-            </div>
-            {loginError && <p className="text-red-500 text-[10px] font-black uppercase text-center animate-pulse">{loginError}</p>}
-            <button type="submit" className="w-full bg-[#14b8a6] text-black py-5 rounded-2xl font-black uppercase italic tracking-tighter flex items-center justify-center gap-3 hover:scale-[1.02] transition-all shadow-[0_15px_30px_rgba(20,184,166,0.2)]">AUTENTICAR <LogIn className="w-5 h-5" /></button>
-          </form>
-          <p className="text-center text-[9px] text-gray-800 font-black uppercase tracking-[0.3em]">v2.6 Omega Drive - Auth Required</p>
-        </div>
-      </div>
-    );
-  }
 
   const renderContent = () => {
+    if (!currentUser) return null;
+    
     switch (activeTab) {
       case 'dashboard': return <Dashboard clients={currentData.clients.filter(c => !c.isPaused)} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} />;
       case 'team': return (
         <TeamView 
           team={team} currentUser={currentUser} availableRoles={availableRoles} 
           onUpdateRole={(id, r) => setTeam(prev => prev.map(u => u.id === id ? { ...u, role: r } : u))}
-          onAddMember={(name, role) => setTeam(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), name, role, isActive: true }])}
+          onAddMember={(name, role, email) => setTeam(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), name, email: email || '', role, isActive: true }])}
           onRemoveMember={(id) => setTeam(prev => prev.filter(u => u.id !== id))}
           onAddRole={(role) => setAvailableRoles([...availableRoles, role])}
           onToggleActive={(id) => setTeam(prev => prev.map(u => u.id === id ? { ...u, isActive: !u.isActive } : u))} 
@@ -203,7 +114,7 @@ const App: React.FC = () => {
           tasks={currentData.tasks} 
           currentUser={currentUser} 
           drive={currentData.drive || []}
-          onUpdateDrive={handleDriveUpdate}
+          onUpdateDrive={items => updateCurrentMonthData({ drive: items })}
           onToggleTask={id => updateCurrentMonthData({ tasks: currentData.tasks.map(t => t.id === id ? { ...t, status: t.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED' } : t) })} 
           onUpdateNotes={(id, n) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, notes: n } : c) })} 
           onUpdateStatusFlag={(id, f) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, statusFlag: f } : c) })} 
@@ -215,10 +126,11 @@ const App: React.FC = () => {
           clients={currentData.clients} 
           currentUser={currentUser}
           onAssignManager={(cid, mid) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === cid ? { ...c, managerId: mid } : c) })} 
-          onRemoveClient={handleRemoveClient}
-          onTogglePauseClient={handleTogglePauseClient}
+          onRemoveClient={(cid) => updateCurrentMonthData({ clients: currentData.clients.filter(c => c.id !== cid) })}
+          onTogglePauseClient={(cid) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === cid ? { ...c, isPaused: !c.isPaused } : c) })}
         />
       );
+      case 'notes': return <WikiView wiki={currentData.wiki || []} currentUser={currentUser} onUpdateWiki={items => updateCurrentMonthData({ wiki: items })} />;
       case 'chat': return (
         <div className="flex flex-col h-full max-w-[1000px] mx-auto">
            <header className="mb-8 flex justify-between items-center px-4"><h2 className="text-3xl font-black text-white italic uppercase flex items-center gap-3"><Hash className="w-8 h-8 text-teal-500" /> Comunicação Interna</h2></header>
@@ -241,6 +153,10 @@ const App: React.FC = () => {
       default: return null;
     }
   };
+
+  if (!currentUser) {
+    return <Auth team={team} onLogin={setCurrentUser} onUpdateUser={handleUpdateTeamMember} />;
+  }
 
   return (
     <div className="flex h-screen bg-[#0a0a0a] text-gray-300 overflow-hidden font-inter">

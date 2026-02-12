@@ -8,7 +8,7 @@ interface TeamViewProps {
   currentUser: User;
   availableRoles: string[];
   onUpdateRole: (userId: string, newRole: UserRole) => void;
-  onAddMember: (name: string, role: UserRole) => void;
+  onAddMember: (name: string, role: UserRole, email: string) => void;
   onRemoveMember: (userId: string) => void;
   onAddRole: (roleName: string) => void;
   onToggleActive: (userId: string) => void;
@@ -20,6 +20,7 @@ const TeamView: React.FC<TeamViewProps> = ({
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [isAddingRole, setIsAddingRole] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState<UserRole>(DefaultUserRole.MANAGER);
   const [newRoleName, setNewRoleName] = useState('');
 
@@ -27,9 +28,10 @@ const TeamView: React.FC<TeamViewProps> = ({
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim()) return;
-    onAddMember(newName, newRole);
+    if (!newName.trim() || !newEmail.trim()) return;
+    onAddMember(newName, newRole, newEmail);
     setNewName('');
+    setNewEmail('');
     setIsAddingMember(false);
   };
 
@@ -79,6 +81,10 @@ const TeamView: React.FC<TeamViewProps> = ({
                 <input required value={newName} onChange={e => setNewName(e.target.value)} className="w-full bg-black border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#14b8a6]" placeholder="Ex: Lucas Silva" />
               </div>
               <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-500 uppercase">Email de Acesso</label>
+                <input required type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="w-full bg-black border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-[#14b8a6]" placeholder="Ex: lucas@omega.com" />
+              </div>
+              <div className="space-y-1">
                 <label className="text-[10px] font-black text-gray-500 uppercase">Cargo</label>
                 <select value={newRole} onChange={e => setNewRole(e.target.value)} className="w-full bg-black border border-white/10 rounded-2xl px-5 py-4 text-white outline-none">
                   {availableRoles.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
@@ -118,6 +124,7 @@ const TeamView: React.FC<TeamViewProps> = ({
                 </div>
                 <div>
                   <h4 className="text-white font-bold text-lg uppercase tracking-tighter italic">{member.name}</h4>
+                  <span className="text-[9px] text-gray-500 lowercase font-medium mb-1 block">{member.email}</span>
                   <span className={`text-[9px] font-black tracking-widest uppercase ${member.isActive ? 'text-teal-500' : 'text-red-500'}`}>
                     {member.isActive ? 'Acesso Liberado' : 'Acesso Bloqueado'}
                   </span>
