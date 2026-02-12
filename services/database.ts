@@ -1,37 +1,66 @@
+
 import { AppState } from '../types';
 import { supabase } from '../supabaseClient';
 
 const STORAGE_KEY = 'omega_v2_data';
+const SUPABASE_URL = 'https://chzkslqbpmlpepvydacu.supabase.co';
 
 export const dbService = {
-  saveState: async (state: AppState): Promise<boolean> => {
-    // 1. Sempre salva no LocalStorage como segurança absoluta (Backup local)
+  // Detecta se o problema é bloqueio de navegador ou erro de servidor
+  diagnoseConnection: async (): Promise<{ status: 'CONNECTED' | 'BLOCKED' | 'SERVER_ERROR' | 'OFFLINE', message?: string }> => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+        method: 'GET',
+        headers: { 'apikey': 'ping' },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      return { status: 'CONNECTED' };
+    } catch (e: any) {
+      if (e.name === 'AbortError') return { status: 'OFFLINE', message: 'Tempo de conexão esgotado.' };
+      if (e.message.includes('fetch') || e.name === 'TypeError') {
+        return { 
+          status: 'BLOCKED', 
+          message: 'Conexão bloqueada pelo navegador. Provavelmente um AdBlocker ou extensão de segurança.' 
+        };
+      }
+      return { status: 'SERVER_ERROR', message: e.message };
+    }
+  },
+
+  saveState: async (state: AppState): Promise<{ success: boolean; error?: string; isNetworkBlock?: boolean }> => {
+    // Sempre salvar local primeiro
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
-    if (!supabase) return false;
+    if (!supabase) return { success: false, error: "Supabase não configurado." };
 
     try {
       const { error } = await supabase
         .from('omega_store')
-        .upsert({ id: 1, state: state });
+        .upsert({ id: 1, state: state }, { onConflict: 'id' });
 
-      if (error) {
-        // Log silenciado para evitar poluição visual em caso de erro de rede comum
-        return false;
-      }
-      return true;
-    } catch (e) {
-      // Captura o "Failed to fetch" (CORS, Adblock, etc)
-      return false;
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (e: any) {
+      const isBlock = e.message?.includes('fetch') || e.name === 'TypeError';
+      return { 
+        success: false, 
+        error: isBlock ? "Bloqueio de Navegador (AdBlock?)" : e.message,
+        isNetworkBlock: isBlock
+      };
     }
   },
 
   loadState: async (): Promise<AppState | null> => {
-    // Tenta carregar do LocalStorage primeiro para velocidade
     const localData = localStorage.getItem(STORAGE_KEY);
     let localParsed: AppState | null = null;
+    
     if (localData) {
-      localParsed = JSON.parse(localData);
+      try { localParsed = JSON.parse(localData); } catch (e) {}
     }
 
     if (supabase) {
@@ -40,22 +69,12 @@ export const dbService = {
           .from('omega_store')
           .select('state')
           .eq('id', 1)
-          .single();
+          .maybeSingle();
 
-        if (data && data.state && Object.keys(data.state).length > 0) {
-          console.log('✅ Nuvem Ômega Sincronizada');
-          return data.state as AppState;
-        }
-      } catch (e) {
-        // Ignora erro de rede e usa o local
-      }
+        if (!error && data?.state) return data.state as AppState;
+      } catch (e) {}
     }
 
-    if (localParsed) {
-      console.log('📂 Cache local carregado');
-      return localParsed;
-    }
-    
-    return null;
+    return localParsed;
   },
 };

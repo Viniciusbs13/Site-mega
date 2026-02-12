@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { ShieldCheck, Mail, Lock, UserCircle, ArrowRight, RefreshCw, AlertCircle } from 'lucide-center';
-import { ShieldCheck as ShieldIcon, Mail as MailIcon, Lock as LockIcon, ArrowRight as ArrowIcon, AlertCircle as AlertIcon } from 'lucide-react';
+import { 
+  ShieldCheck as ShieldIcon, 
+  Mail as MailIcon, 
+  Lock as LockIcon, 
+  ArrowRight as ArrowIcon, 
+  AlertCircle as AlertIcon 
+} from 'lucide-react';
 
 interface AuthProps {
   team: User[];
@@ -184,24 +189,6 @@ const Auth: React.FC<AuthProps> = ({ team, onLogin, onUpdateUser }) => {
             <button type="submit" className="w-full bg-[#14b8a6] text-black py-5 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] transition-all">
               ATIVAR & ENTRAR
             </button>
-          </form>
-        )}
-
-        {mode === 'RECOVER' && (
-          <form onSubmit={handleRecover} className="space-y-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-black text-white italic uppercase">Recuperar</h2>
-              <p className="text-[10px] text-gray-500 font-bold mt-2 uppercase">Identifique seu email cadastrado.</p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-2">Seu Email</label>
-              <div className="relative">
-                <MailIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
-                <input required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" className="w-full bg-black border border-white/5 rounded-2xl py-5 pl-14 pr-6 text-white text-sm outline-none focus:border-teal-500/50 transition-all" />
-              </div>
-            </div>
-            <button type="submit" className="w-full bg-white text-black py-5 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] transition-all">CONTINUAR</button>
-            <button type="button" onClick={() => setMode('LOGIN')} className="w-full text-center text-[10px] font-black text-gray-600 uppercase tracking-widest hover:text-gray-400">Voltar</button>
           </form>
         )}
 
