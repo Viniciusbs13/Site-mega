@@ -70,11 +70,14 @@ const App: React.FC = () => {
         
         const saved = await dbService.loadState();
         if (saved) {
+          // Garante que o CEO default sempre exista, mas carrega o time da nuvem
           const otherMembers = (saved.team || []).filter(u => u.email.toLowerCase() !== CEO_DEFAULT.email.toLowerCase());
           setTeam([CEO_DEFAULT, ...otherMembers]);
           setAvailableRoles(saved.availableRoles || Object.values(DefaultUserRole));
           setDb(saved.db);
           setIsSynced(diag.status === 'CONNECTED');
+        } else {
+          setTeam([CEO_DEFAULT]);
         }
       } catch (err) {
         setTeam([CEO_DEFAULT]);
@@ -87,16 +90,14 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!isLoading) {
-      // Delay maior se estiver bloqueado para não floodar o console
-      const delay = isNetworkBlocked ? 10000 : 2000;
+      const delay = isNetworkBlocked ? 15000 : 3000;
       const saveTimeout = setTimeout(syncToCloud, delay);
       return () => clearTimeout(saveTimeout);
     }
   }, [team, availableRoles, db, isLoading, syncToCloud, isNetworkBlocked]);
 
   useEffect(() => {
-    // Tenta reconectar a cada 60s se estiver bloqueado, ou 30s se for erro genérico
-    const intervalTime = isNetworkBlocked ? 60000 : 30000;
+    const intervalTime = isNetworkBlocked ? 45000 : 30000;
     const interval = setInterval(async () => {
       if (!isSynced) {
         const diag = await dbService.diagnoseConnection();
@@ -119,7 +120,7 @@ const App: React.FC = () => {
         </div>
         <div className="flex flex-col items-center gap-2">
           <div className="flex items-center gap-3 text-teal-500 font-black uppercase tracking-[0.3em] text-[10px]">
-            <Loader2 className="w-4 h-4 animate-spin" /> Sincronizando Core Ômega
+            <Loader2 className="w-4 h-4 animate-spin" /> Estabelecendo Conexão Segura
           </div>
         </div>
       </div>

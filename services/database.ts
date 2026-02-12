@@ -9,12 +9,12 @@ export const dbService = {
   diagnoseConnection: async (): Promise<{ status: 'CONNECTED' | 'BLOCKED' | 'SERVER_ERROR' | 'OFFLINE', message?: string }> => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
       
+      // Teste real de ping no endpoint do Supabase
       const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
         method: 'GET',
         headers: { 'apikey': 'ping' },
-        mode: 'no-cors', // Tenta um ping menos restritivo
         cache: 'no-store',
         signal: controller.signal
       });
@@ -26,7 +26,7 @@ export const dbService = {
       if (e.message?.includes('fetch') || e.name === 'TypeError' || e.status === 0) {
         return { 
           status: 'BLOCKED', 
-          message: 'Extensão de Navegador bloqueando Supabase.' 
+          message: 'O Navegador bloqueou a conexão com o Banco de Dados (AdBlock/VPN ativo).' 
         };
       }
       return { status: 'SERVER_ERROR', message: e.message };
@@ -34,15 +34,15 @@ export const dbService = {
   },
 
   saveState: async (state: AppState): Promise<{ success: boolean; error?: string; isNetworkBlock?: boolean }> => {
-    // 1. SEMPRE SALVA LOCAL PRIMEIRO (Garantia de 0% de perda)
+    // 1. Salva local para não perder o trabalho atual
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
-      console.error("Erro crítico no LocalStorage:", e);
+      console.error("Falha no LocalStorage", e);
     }
 
-    // 2. TENTA NUVEM SE DISPONÍVEL
-    if (!supabase) return { success: false, error: "Cloud desativada.", isNetworkBlock: true };
+    // 2. Tenta enviar para a nuvem
+    if (!supabase) return { success: false, error: "Cloud não configurada.", isNetworkBlock: true };
 
     try {
       const { error } = await supabase
@@ -53,10 +53,6 @@ export const dbService = {
       return { success: true };
     } catch (e: any) {
       const isBlock = e.message?.includes('fetch') || e.name === 'TypeError' || e.status === 0;
-      
-      // Silencia logs repetitivos para não poluir o console do CEO
-      if (!isBlock) console.error("Erro Cloud:", e.message);
-      
       return { 
         success: false, 
         error: isBlock ? "Bloqueado por Extensão" : e.message,
@@ -66,7 +62,6 @@ export const dbService = {
   },
 
   loadState: async (): Promise<AppState | null> => {
-    // Prioriza Local para velocidade instantânea
     const localData = localStorage.getItem(STORAGE_KEY);
     let localParsed: AppState | null = null;
     
@@ -74,7 +69,7 @@ export const dbService = {
       try { localParsed = JSON.parse(localData); } catch (e) {}
     }
 
-    // Tenta atualizar do Cloud se possível
+    // Tenta puxar a versão da nuvem para atualizar o local
     if (supabase) {
       try {
         const { data, error } = await supabase
@@ -84,10 +79,12 @@ export const dbService = {
           .maybeSingle();
 
         if (!error && data?.state) {
+          // Atualiza o localstorage com o que veio da nuvem
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.state));
           return data.state as AppState;
         }
       } catch (e) {
-        // Falha silenciosa: usa o local
+        console.warn("Usando backup local (Nuvem inacessível)");
       }
     }
 

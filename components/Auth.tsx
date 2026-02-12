@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { User } from '../types';
+import { dbService } from '../services/database';
 import { 
   ShieldCheck as ShieldIcon, 
   Mail as MailIcon, 
   Lock as LockIcon, 
   ArrowRight as ArrowIcon, 
-  AlertCircle as AlertIcon 
+  AlertCircle as AlertIcon,
+  RefreshCw,
+  WifiOff
 } from 'lucide-react';
 
 interface AuthProps {
@@ -23,17 +27,27 @@ const Auth: React.FC<AuthProps> = ({ team, onLogin, onUpdateUser }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [targetUser, setTargetUser] = useState<User | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+
+  useEffect(() => {
+    checkConnection();
+  }, []);
+
+  const checkConnection = async () => {
+    const diag = await dbService.diagnoseConnection();
+    setIsBlocked(diag.status === 'BLOCKED');
+  };
 
   const handleInitialCheck = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
-    // Tratamento robusto do email (limpa espaços e ignora maiúsculas)
     const cleanEmail = email.trim().toLowerCase();
     const user = team.find(u => u.email.toLowerCase() === cleanEmail);
 
     if (!user) {
-      setError(`O email "${cleanEmail}" não foi encontrado. Fale com a diretoria.`);
+      setError(`O email "${cleanEmail}" não foi encontrado neste navegador. Tente clicar em "Sincronizar com a Nuvem" abaixo.`);
       return;
     }
 
@@ -47,6 +61,25 @@ const Auth: React.FC<AuthProps> = ({ team, onLogin, onUpdateUser }) => {
       setMode('FIRST_ACCESS');
     } else {
       setMode('LOGIN');
+    }
+  };
+
+  const forceSync = async () => {
+    setIsSyncing(true);
+    setError('');
+    try {
+      const diag = await dbService.diagnoseConnection();
+      if (diag.status === 'BLOCKED') {
+        setError("Não foi possível sincronizar: Seu AdBlock ou VPN está bloqueando a conexão.");
+        setIsBlocked(true);
+      } else {
+        // Recarrega a página para forçar o App.tsx a buscar os dados da nuvem novamente
+        window.location.reload();
+      }
+    } catch (e) {
+      setError("Erro ao tentar conectar com a nuvem.");
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -76,19 +109,6 @@ const Auth: React.FC<AuthProps> = ({ team, onLogin, onUpdateUser }) => {
     }
   };
 
-  const handleRecover = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanEmail = email.trim().toLowerCase();
-    const user = team.find(u => u.email.toLowerCase() === cleanEmail);
-    if (user) {
-      setTargetUser(user);
-      setMode('RESET_PASSWORD');
-      setError('');
-    } else {
-      setError('Email não reconhecido.');
-    }
-  };
-
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-[#0a0a0a] p-6 relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-teal-500/5 blur-[150px] rounded-full pointer-events-none"></div>
@@ -101,6 +121,16 @@ const Auth: React.FC<AuthProps> = ({ team, onLogin, onUpdateUser }) => {
           <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase">OMEGA WORKSPACE</h1>
           <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.3em] mt-2">Acesso Restrito ao Time</p>
         </div>
+
+        {isBlocked && (
+          <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col gap-2 text-amber-500 text-[10px] font-black uppercase">
+            <div className="flex items-center gap-2">
+              <WifiOff className="w-4 h-4" />
+              <span>Bloqueio de Nuvem Detectado</span>
+            </div>
+            <p className="opacity-70 font-bold tracking-tight leading-tight">Desative o AdBlocker para este site para que novos cadastros funcionem.</p>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400 text-xs font-bold animate-in fade-in slide-in-from-top-2">
@@ -128,6 +158,18 @@ const Auth: React.FC<AuthProps> = ({ team, onLogin, onUpdateUser }) => {
             <button type="submit" className="w-full bg-[#14b8a6] text-black py-5 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3">
               ENTRAR <ArrowIcon className="w-4 h-4" />
             </button>
+            
+            <div className="pt-4 border-t border-white/5">
+              <button 
+                type="button" 
+                onClick={forceSync}
+                disabled={isSyncing}
+                className="w-full flex items-center justify-center gap-2 text-[10px] font-black text-gray-500 hover:text-teal-500 uppercase transition-all"
+              >
+                <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Sincronizando...' : 'Email não entra? Sincronizar com a Nuvem'}
+              </button>
+            </div>
           </form>
         )}
 
