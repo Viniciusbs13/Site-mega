@@ -87,7 +87,20 @@ const App: React.FC = () => {
         <TeamView 
           team={team} currentUser={currentUser} availableRoles={availableRoles} 
           onUpdateRole={(id, r) => setTeam(prev => prev.map(u => u.id === id ? { ...u, role: r } : u))}
-          onAddMember={(name, role, email) => setTeam(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), name, email: email || '', role, isActive: true }])}
+          onAddMember={(name, role, email) => {
+            const exists = team.some(u => u.email.toLowerCase() === email.toLowerCase());
+            if(exists) {
+              alert("Este email já está cadastrado.");
+              return;
+            }
+            setTeam(prev => [...prev, { 
+              id: Math.random().toString(36).substr(2, 9), 
+              name, 
+              email: email.toLowerCase(), 
+              role, 
+              isActive: true 
+            }]);
+          }}
           onRemoveMember={(id) => setTeam(prev => prev.filter(u => u.id !== id))}
           onAddRole={(role) => setAvailableRoles([...availableRoles, role])}
           onToggleActive={(id) => setTeam(prev => prev.map(u => u.id === id ? { ...u, isActive: !u.isActive } : u))} 
