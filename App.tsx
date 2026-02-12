@@ -12,7 +12,7 @@ import SalesView from './components/SalesView';
 import WikiView from './components/WikiView';
 import Auth from './components/Auth';
 import { dbService } from './services/database';
-import { Hash, Loader2 } from 'lucide-react';
+import { Hash, Loader2, ShieldCheck, X } from 'lucide-react';
 
 const App: React.FC = () => {
   const currentYear = new Date().getFullYear();
@@ -61,7 +61,6 @@ const App: React.FC = () => {
     setSyncError(result.error || null);
   }, [team, availableRoles, db, isLoading]);
 
-  // Carregamento Inicial
   useEffect(() => {
     const initApp = async () => {
       setIsLoading(true);
@@ -86,37 +85,28 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
-  // Sincronização automática
   useEffect(() => {
     if (!isLoading) {
-      const saveTimeout = setTimeout(syncToCloud, 1500);
+      // Delay maior se estiver bloqueado para não floodar o console
+      const delay = isNetworkBlocked ? 10000 : 2000;
+      const saveTimeout = setTimeout(syncToCloud, delay);
       return () => clearTimeout(saveTimeout);
     }
-  }, [team, availableRoles, db, isLoading, syncToCloud]);
+  }, [team, availableRoles, db, isLoading, syncToCloud, isNetworkBlocked]);
 
-  // Heartbeat para tentar reconectar se bloqueado
   useEffect(() => {
+    // Tenta reconectar a cada 60s se estiver bloqueado, ou 30s se for erro genérico
+    const intervalTime = isNetworkBlocked ? 60000 : 30000;
     const interval = setInterval(async () => {
       if (!isSynced) {
         const diag = await dbService.diagnoseConnection();
         setIsNetworkBlocked(diag.status === 'BLOCKED');
         if (diag.status === 'CONNECTED') syncToCloud();
       }
-    }, 30000);
+    }, intervalTime);
     return () => clearInterval(interval);
-  }, [isSynced, syncToCloud]);
+  }, [isSynced, syncToCloud, isNetworkBlocked]);
 
-  const currentData = db[selectedMonth] || { 
-    clients: [], tasks: [], 
-    salesGoal: { monthlyTarget: 100000, monthlySuperTarget: 150000, currentValue: 0, totalSales: 0, contractFormUrl: 'https://seulink.com/onboarding', salesNotes: '' }, 
-    chatMessages: [], drive: [], wiki: []
-  };
-
-  const updateCurrentMonthData = (updates: Partial<MonthlyData[string]>) => {
-    setDb(prev => ({ ...prev, [selectedMonth]: { ...currentData, ...updates } }));
-  };
-
-  // Added handleUpdateTeamMember to fix error on line 167: Cannot find name 'handleUpdateTeamMember'
   const handleUpdateTeamMember = (updatedUser: User) => {
     setTeam(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
   };
@@ -129,12 +119,22 @@ const App: React.FC = () => {
         </div>
         <div className="flex flex-col items-center gap-2">
           <div className="flex items-center gap-3 text-teal-500 font-black uppercase tracking-[0.3em] text-[10px]">
-            <Loader2 className="w-4 h-4 animate-spin" /> Estabelecendo Conexão Segura
+            <Loader2 className="w-4 h-4 animate-spin" /> Sincronizando Core Ômega
           </div>
         </div>
       </div>
     );
   }
+
+  const currentData = db[selectedMonth] || { 
+    clients: [], tasks: [], 
+    salesGoal: { monthlyTarget: 100000, monthlySuperTarget: 150000, currentValue: 0, totalSales: 0, contractFormUrl: 'https://seulink.com/onboarding', salesNotes: '' }, 
+    chatMessages: [], drive: [], wiki: []
+  };
+
+  const updateCurrentMonthData = (updates: Partial<MonthlyData[string]>) => {
+    setDb(prev => ({ ...prev, [selectedMonth]: { ...currentData, ...updates } }));
+  };
 
   const renderContent = () => {
     if (!currentUser) return null;
@@ -143,7 +143,7 @@ const App: React.FC = () => {
       case 'team': return <TeamView team={team} currentUser={currentUser} availableRoles={availableRoles} onUpdateRole={(id, r) => setTeam(prev => prev.map(u => u.id === id ? { ...u, role: r } : u))} onAddMember={(name, role, email) => { const exists = team.some(u => u.email.toLowerCase() === email.toLowerCase()); if(exists) return alert("Email já cadastrado"); setTeam(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), name, email: email.toLowerCase(), role, isActive: true }]); }} onRemoveMember={(id) => id !== 'ceo-master' && setTeam(prev => prev.filter(u => u.id !== id))} onAddRole={(role) => setAvailableRoles([...availableRoles, role])} onToggleActive={(id) => setTeam(prev => prev.map(u => u.id === id ? { ...u, isActive: !u.isActive } : u))} />;
       case 'commercial': return <SalesView goal={currentData.salesGoal} team={team} clients={currentData.clients} currentUser={currentUser} onUpdateGoal={u => updateCurrentMonthData({ salesGoal: { ...currentData.salesGoal, ...u } })} onRegisterSale={(uid, val, cname) => { setTeam(prev => prev.map(usr => usr.id === uid ? { ...usr, salesVolume: (usr.salesVolume || 0) + val } : usr)); const newClient: Client = { id: Math.random().toString(36).substr(2,9), name: cname, industry: 'Novo Contrato', health: 'Estável', progress: 0, managerId: '', salesId: uid, contractValue: val, statusFlag: 'GREEN', isPaused: false, folder: { briefing: '', accessLinks: '', operationalHistory: '' } }; updateCurrentMonthData({ salesGoal: { ...currentData.salesGoal, currentValue: currentData.salesGoal.currentValue + val, totalSales: currentData.salesGoal.totalSales + 1 }, clients: [...currentData.clients, newClient] }); }} onUpdateUserGoal={(id, pg, sg) => setTeam(prev => prev.map(u => u.id === id ? { ...u, personalGoal: pg, superGoal: sg } : u))} onUpdateClientNotes={(cid, n) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === cid ? { ...c, closingNotes: n } : c) })} />;
       case 'checklists': return <ChecklistView tasks={currentData.tasks} currentUser={currentUser} onAddTask={t => updateCurrentMonthData({ tasks: [{ ...t, id: Date.now().toString() } as Task, ...currentData.tasks] })} onRemoveTask={id => updateCurrentMonthData({ tasks: currentData.tasks.filter(t => t.id !== id) })} />;
-      case 'my-workspace': return <ManagerWorkspace managerId={currentUser.id} clients={currentData.clients} tasks={currentData.tasks} currentUser={currentUser} drive={currentData.drive || []} onUpdateDrive={items => updateCurrentMonthData({ drive: items })} onToggleTask={id => updateCurrentMonthData({ tasks: currentData.tasks.map(t => t.id === id ? { ...t, status: t.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED' } : t) })} onUpdateNotes={(id, n) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === cid ? { ...c, notes: n } : c) })} onUpdateStatusFlag={(id, f) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, statusFlag: f } : c) })} onUpdateFolder={(id, f) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, folder: { ...c.folder, ...f } } : c) })} />;
+      case 'my-workspace': return <ManagerWorkspace managerId={currentUser.id} clients={currentData.clients} tasks={currentData.tasks} currentUser={currentUser} drive={currentData.drive || []} onUpdateDrive={items => updateCurrentMonthData({ drive: items })} onToggleTask={id => updateCurrentMonthData({ tasks: currentData.tasks.map(t => t.id === id ? { ...t, status: t.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED' } : t) })} onUpdateNotes={(id, n) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, notes: n } : c) })} onUpdateStatusFlag={(id, f) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, statusFlag: f } : c) })} onUpdateFolder={(id, f) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, folder: { ...c.folder, ...f } } : c) })} />;
       case 'clients': return <SquadsView clients={currentData.clients} currentUser={currentUser} onAssignManager={(cid, mid) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === cid ? { ...c, managerId: mid } : c) })} onRemoveClient={(cid) => updateCurrentMonthData({ clients: currentData.clients.filter(c => c.id !== cid) })} onTogglePauseClient={(cid) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === cid ? { ...c, isPaused: !c.isPaused } : c) })} />;
       case 'notes': return <WikiView wiki={currentData.wiki || []} currentUser={currentUser} onUpdateWiki={items => updateCurrentMonthData({ wiki: items })} />;
       case 'chat': return (

@@ -2,7 +2,7 @@
 import React from 'react';
 import { NAVIGATION_ITEMS } from '../constants';
 import { UserRole, User, DefaultUserRole } from '../types';
-import { Settings, LogOut, RefreshCw, AlertCircle, ShieldAlert } from 'lucide-react';
+import { Settings, LogOut, RefreshCw, ShieldCheck, ShieldAlert, WifiOff } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -22,13 +22,14 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const showFixHelp = () => {
     alert(
-      "🛡️ DETECTADO BLOQUEIO DE REDE\n\n" +
-      "Seu navegador ou uma extensão (como AdBlock ou VPN) está impedindo o site de falar com o banco de dados.\n\n" +
-      "Como corrigir:\n" +
-      "1. Desative o AdBlock para este site.\n" +
-      "2. Se estiver usando VPN, tente desligar.\n" +
-      "3. Tente abrir o site em uma Aba Anônima para testar.\n\n" +
-      "Seus dados estão sendo salvos apenas neste computador por enquanto."
+      "🛡️ OMEGA LOCAL-FIRST ENGINE\n\n" +
+      "Seu navegador possui um bloqueador (AdBlock/VPN) que impede a conexão com a Nuvem Supabase.\n\n" +
+      "✅ FIQUE TRANQUILO:\n" +
+      "Seus dados estão sendo salvos com segurança NESTA MÁQUINA.\n\n" +
+      "💡 COMO ATIVAR A NUVEM:\n" +
+      "1. Clique no ícone do seu AdBlocker.\n" +
+      "2. Selecione 'Pausar/Desativar neste site'.\n" +
+      "3. Recarregue a página."
     );
   };
 
@@ -61,21 +62,20 @@ const Sidebar: React.FC<SidebarProps> = ({
       </nav>
 
       <div className="p-4 border-t border-white/5 space-y-4">
-        {/* Status proeminente de erro de rede */}
         {isNetworkBlocked ? (
           <button 
             onClick={showFixHelp}
-            className="w-full flex flex-col gap-2 p-4 rounded-2xl border bg-red-500/20 border-red-500 animate-pulse text-left group"
+            className="w-full flex flex-col gap-2 p-4 rounded-2xl border bg-teal-500/5 border-teal-500/20 hover:bg-teal-500/10 transition-all text-left"
           >
             <div className="flex items-center justify-between">
                <div className="flex items-center gap-2">
-                 <ShieldAlert className="w-4 h-4 text-red-500" />
-                 <span className="text-[10px] font-black uppercase text-red-500">Bloqueio Detectado</span>
+                 <ShieldCheck className="w-4 h-4 text-teal-500" />
+                 <span className="text-[10px] font-black uppercase text-teal-500">Backup Local Ativo</span>
                </div>
-               <RefreshCw className="w-3 h-3 text-red-500" />
+               <WifiOff className="w-3 h-3 text-gray-600" />
             </div>
-            <p className="text-[8px] text-white font-bold leading-tight uppercase">
-              O Navegador bloqueou a nuvem. Clique para ver como corrigir.
+            <p className="text-[8px] text-gray-500 font-bold leading-tight uppercase">
+              Nuvem bloqueada por extensão. Dados protegidos localmente.
             </p>
           </button>
         ) : (
@@ -84,18 +84,13 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${isSynced ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
                 <span className={`text-[9px] font-black uppercase tracking-widest ${isSynced ? 'text-green-500' : 'text-yellow-500'}`}>
-                  {isSynced ? 'Nuvem Ativa' : 'Modo Offline'}
+                  {isSynced ? 'Nuvem Ativa' : 'Sincronizando'}
                 </span>
               </div>
               <button onClick={() => window.location.reload()} className="p-1 hover:bg-white/10 rounded-lg text-gray-500">
                 <RefreshCw className="w-3 h-3" />
               </button>
             </div>
-            {!isSynced && (
-              <p className="text-[7px] text-gray-600 font-medium leading-relaxed uppercase">
-                {syncError || "Aguardando Sincronização..."}
-              </p>
-            )}
           </div>
         )}
 
@@ -112,14 +107,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <div className="space-y-1">
-          <button className="w-full flex items-center gap-3 px-3 py-3 text-gray-600 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-white/5">
-            <Settings className="w-4 h-4" />
-            <span>Configurações</span>
-          </button>
-          <button 
-            onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-3 text-red-500 hover:text-red-400 transition-colors text-xs font-black uppercase tracking-widest rounded-xl hover:bg-red-500/5"
-          >
+          <button className="w-full flex items-center gap-3 px-3 py-3 text-red-500 hover:text-red-400 transition-colors text-xs font-black uppercase tracking-widest rounded-xl hover:bg-red-500/5" onClick={onLogout}>
             <LogOut className="w-4 h-4" />
             <span>Encerrar Sessão</span>
           </button>
