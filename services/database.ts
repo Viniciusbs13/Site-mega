@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 
 const STORAGE_KEY = 'omega_v2_data';
 const SUPABASE_URL = 'https://chzkslqbplmpepvydacu.supabase.co';
+const ANON_KEY = 'sb_publishable_34RidSlAX-HkuuxY73BcQg_lSGNlriO';
 
 export const dbService = {
   diagnoseConnection: async (): Promise<{ status: 'CONNECTED' | 'BLOCKED' | 'SERVER_ERROR' | 'OFFLINE', message?: string }> => {
@@ -11,11 +12,10 @@ export const dbService = {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
       
-      // Ping para verificar se a rede do usuário permite acesso ao Supabase
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/omega_store?select=id`, {
         method: 'GET',
         headers: { 
-          'apikey': 'sb_publishable_34RidSlAX-HkuuxY73BcQg_lSGNlriO', 
+          'apikey': ANON_KEY, 
           'Content-Type': 'application/json',
           'X-Client-Info': 'omega-v2'
         },
@@ -24,6 +24,11 @@ export const dbService = {
       });
       
       clearTimeout(timeoutId);
+      
+      if (response.status === 404) {
+        return { status: 'SERVER_ERROR', message: 'Tabela omega_store não encontrada no Supabase.' };
+      }
+
       return { status: 'CONNECTED' };
     } catch (e: any) {
       if (e.name === 'AbortError') return { status: 'OFFLINE', message: 'Conexão lenta.' };
@@ -38,7 +43,6 @@ export const dbService = {
   },
 
   saveState: async (state: AppState): Promise<{ success: boolean; error?: string; isNetworkBlock?: boolean }> => {
-    // 1. Sempre persiste localmente primeiro para segurança do usuário
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
@@ -48,7 +52,6 @@ export const dbService = {
     if (!supabase) return { success: false, error: "Supabase not initialized", isNetworkBlock: true };
 
     try {
-      // O modelo assume uma tabela 'omega_store' com colunas 'id' (int4) e 'state' (jsonb)
       const { error } = await supabase
         .from('omega_store')
         .upsert({ id: 1, state: state }, { onConflict: 'id' });
@@ -66,7 +69,6 @@ export const dbService = {
   },
 
   loadState: async (): Promise<AppState | null> => {
-    // Tenta Nuvem primeiro (Verdade Única)
     if (supabase) {
       try {
         const { data, error } = await supabase
@@ -81,7 +83,7 @@ export const dbService = {
           return cloudState;
         }
       } catch (e) {
-        console.warn("Cloud load failed, using local fallback");
+        console.warn("Cloud load failed, fallback to local.");
       }
     }
 
