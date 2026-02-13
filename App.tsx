@@ -12,7 +12,7 @@ import SalesView from './components/SalesView';
 import WikiView from './components/WikiView';
 import Auth from './components/Auth';
 import { dbService } from './services/database';
-import { Hash, Loader2, Menu, X, Bell } from 'lucide-react';
+import { Hash, Loader2, Menu, X, Bell, AlertTriangle } from 'lucide-react';
 
 const App: React.FC = () => {
   const currentYear = new Date().getFullYear();
@@ -20,14 +20,16 @@ const App: React.FC = () => {
   const monthKey = `${currentMonthName} ${currentYear}`;
 
   const [isLoading, setIsLoading] = useState(true);
+  const [hasFatalError, setHasFatalError] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [isNetworkBlocked, setIsNetworkBlocked] = useState(false);
   
-  // Tenta recuperar o usuário salvo para evitar logout no refresh
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('omega_session_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('omega_session_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
   });
 
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -46,17 +48,17 @@ const App: React.FC = () => {
     isActive: true 
   };
 
-  const [team, setTeam] = useState<User[]>([CEO_DEFAULT]);
-  const [db, setDb] = useState<MonthlyData>({
-    [monthKey]: {
-      clients: INITIAL_CLIENTS,
-      tasks: [],
-      salesGoal: { monthlyTarget: 100000, monthlySuperTarget: 150000, currentValue: 0, totalSales: 0, contractFormUrl: 'https://seulink.com/onboarding' },
-      chatMessages: [],
-      drive: [],
-      wiki: []
-    }
+  const DEFAULT_MONTH_DATA = () => ({
+    clients: INITIAL_CLIENTS,
+    tasks: [],
+    salesGoal: { monthlyTarget: 100000, monthlySuperTarget: 150000, currentValue: 0, totalSales: 0, contractFormUrl: 'https://seulink.com/onboarding' },
+    chatMessages: [],
+    drive: [],
+    wiki: []
   });
+
+  const [team, setTeam] = useState<User[]>([CEO_DEFAULT]);
+  const [db, setDb] = useState<MonthlyData>({ [monthKey]: DEFAULT_MONTH_DATA() });
 
   const skipSyncRef = useRef(false);
 
@@ -72,19 +74,24 @@ const App: React.FC = () => {
   }, [team, availableRoles, db, isLoading, currentUser]);
 
   const loadEverything = async () => {
-    const diag = await dbService.diagnoseConnection();
-    setIsNetworkBlocked(diag.status === 'BLOCKED');
-    
-    const saved = await dbService.loadState();
-    if (saved) {
-      skipSyncRef.current = true;
-      const otherMembers = (saved.team || []).filter(u => u.email.toLowerCase() !== CEO_DEFAULT.email.toLowerCase());
-      setTeam([CEO_DEFAULT, ...otherMembers]);
-      setAvailableRoles(saved.availableRoles || Object.values(DefaultUserRole));
-      setDb(saved.db);
-      setIsSynced(diag.status === 'CONNECTED');
-      setTimeout(() => { skipSyncRef.current = false; }, 1000);
-      return true;
+    try {
+      const diag = await dbService.diagnoseConnection();
+      setIsNetworkBlocked(diag.status === 'BLOCKED');
+      
+      const saved = await dbService.loadState();
+      if (saved && saved.db) {
+        skipSyncRef.current = true;
+        const otherMembers = (saved.team || []).filter(u => u.email.toLowerCase() !== CEO_DEFAULT.email.toLowerCase());
+        setTeam([CEO_DEFAULT, ...otherMembers]);
+        setAvailableRoles(saved.availableRoles || Object.values(DefaultUserRole));
+        setDb(saved.db);
+        setIsSynced(diag.status === 'CONNECTED');
+        setTimeout(() => { skipSyncRef.current = false; }, 1000);
+        return true;
+      }
+    } catch (err) {
+      console.error("Erro crítico ao carregar dados:", err);
+      setHasFatalError(true);
     }
     return false;
   };
@@ -99,12 +106,12 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isLoading && !skipSyncRef.current && currentUser) {
+    if (!isLoading && !skipSyncRef.current && currentUser && !hasFatalError) {
       const delay = isNetworkBlocked ? 30000 : 5000;
       const saveTimeout = setTimeout(() => syncToCloud(), delay);
       return () => clearTimeout(saveTimeout);
     }
-  }, [team, availableRoles, db, isLoading, syncToCloud, isNetworkBlocked, currentUser]);
+  }, [team, availableRoles, db, isLoading, syncToCloud, isNetworkBlocked, currentUser, hasFatalError]);
 
   const handleLogin = (u: User) => {
     localStorage.setItem('omega_session_user', JSON.stringify(u));
@@ -124,9 +131,30 @@ const App: React.FC = () => {
   };
 
   const updateCurrentMonthData = (updates: Partial<MonthlyData[string]>) => {
-    const newDb = { ...db, [selectedMonth]: { ...(db[selectedMonth] || {}), ...updates } };
-    setDb(newDb);
+    setDb(prev => {
+      const currentMonthContent = prev[selectedMonth] || DEFAULT_MONTH_DATA();
+      return {
+        ...prev,
+        [selectedMonth]: { ...currentMonthContent, ...updates }
+      };
+    });
   };
+
+  if (hasFatalError) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center p-8 text-center">
+        <AlertTriangle className="w-16 h-16 text-red-500 mb-6" />
+        <h1 className="text-2xl font-black text-white uppercase italic">Erro Crítico de Dados</h1>
+        <p className="text-gray-500 max-w-md mt-4 text-sm">Não foi possível sincronizar o Workspace. Isso pode acontecer por falta de conexão ou dados corrompidos.</p>
+        <button 
+          onClick={() => { localStorage.clear(); window.location.reload(); }}
+          className="mt-8 bg-red-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs"
+        >
+          Resetar Cache e Recarregar
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -146,11 +174,8 @@ const App: React.FC = () => {
 
   if (!currentUser) return <Auth team={team} onLogin={handleLogin} onUpdateUser={handleUpdateTeamMember} />;
 
-  const currentData = db[selectedMonth] || { 
-    clients: [], tasks: [], 
-    salesGoal: { monthlyTarget: 100000, monthlySuperTarget: 150000, currentValue: 0, totalSales: 0, contractFormUrl: 'https://seulink.com/onboarding' }, 
-    chatMessages: [], drive: [], wiki: []
-  };
+  // Garantia de que currentData nunca seja undefined
+  const currentData = (db && db[selectedMonth]) ? db[selectedMonth] : DEFAULT_MONTH_DATA();
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#0a0a0a] text-gray-300 overflow-hidden font-inter relative">
@@ -212,7 +237,10 @@ const App: React.FC = () => {
               }
             } catch (err) {
               console.error("Render error:", err);
-              return <div className="p-12 text-center text-red-500 font-black uppercase">Erro de Renderização. Tente atualizar a página.</div>;
+              return <div className="p-12 text-center text-red-500 font-black uppercase flex flex-col items-center gap-4">
+                <AlertTriangle className="w-12 h-12" />
+                <p>Falha ao renderizar componente. Tente trocar o mês ou recarregar.</p>
+              </div>;
             }
           })()}
         </div>
