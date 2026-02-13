@@ -61,43 +61,49 @@ const App: React.FC = () => {
     setSyncError(result.error || null);
   }, [team, availableRoles, db, isLoading]);
 
+  // Função para carregar TUDO da nuvem
+  const loadEverything = async () => {
+    const diag = await dbService.diagnoseConnection();
+    setIsNetworkBlocked(diag.status === 'BLOCKED');
+    
+    const saved = await dbService.loadState();
+    if (saved) {
+      const otherMembers = (saved.team || []).filter(u => u.email.toLowerCase() !== CEO_DEFAULT.email.toLowerCase());
+      setTeam([CEO_DEFAULT, ...otherMembers]);
+      setAvailableRoles(saved.availableRoles || Object.values(DefaultUserRole));
+      setDb(saved.db);
+      setIsSynced(diag.status === 'CONNECTED');
+      return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     const initApp = async () => {
       setIsLoading(true);
-      try {
-        const diag = await dbService.diagnoseConnection();
-        setIsNetworkBlocked(diag.status === 'BLOCKED');
-        
-        const saved = await dbService.loadState();
-        if (saved) {
-          // Garante que o CEO default sempre exista, mas carrega o time da nuvem
-          const otherMembers = (saved.team || []).filter(u => u.email.toLowerCase() !== CEO_DEFAULT.email.toLowerCase());
-          setTeam([CEO_DEFAULT, ...otherMembers]);
-          setAvailableRoles(saved.availableRoles || Object.values(DefaultUserRole));
-          setDb(saved.db);
-          setIsSynced(diag.status === 'CONNECTED');
-        } else {
-          setTeam([CEO_DEFAULT]);
-        }
-      } catch (err) {
-        setTeam([CEO_DEFAULT]);
-      } finally {
-        setIsLoading(false);
-      }
+      await loadEverything();
+      setIsLoading(false);
     };
     initApp();
   }, []);
 
+  // Quando logar, força um novo download da nuvem para garantir que está vendo o dado mais novo
+  useEffect(() => {
+    if (currentUser) {
+      loadEverything();
+    }
+  }, [currentUser?.id]);
+
   useEffect(() => {
     if (!isLoading) {
-      const delay = isNetworkBlocked ? 15000 : 3000;
+      const delay = isNetworkBlocked ? 20000 : 3000;
       const saveTimeout = setTimeout(syncToCloud, delay);
       return () => clearTimeout(saveTimeout);
     }
   }, [team, availableRoles, db, isLoading, syncToCloud, isNetworkBlocked]);
 
   useEffect(() => {
-    const intervalTime = isNetworkBlocked ? 45000 : 30000;
+    const intervalTime = isNetworkBlocked ? 60000 : 30000;
     const interval = setInterval(async () => {
       if (!isSynced) {
         const diag = await dbService.diagnoseConnection();
@@ -120,7 +126,7 @@ const App: React.FC = () => {
         </div>
         <div className="flex flex-col items-center gap-2">
           <div className="flex items-center gap-3 text-teal-500 font-black uppercase tracking-[0.3em] text-[10px]">
-            <Loader2 className="w-4 h-4 animate-spin" /> Estabelecendo Conexão Segura
+            <Loader2 className="w-4 h-4 animate-spin" /> Conectando ao Nodo Central Ômega
           </div>
         </div>
       </div>
