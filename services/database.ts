@@ -1,5 +1,5 @@
 
-import { AppState } from '../types';
+import { AppState, User } from '../types';
 import { supabase } from '../supabaseClient';
 
 const STORAGE_KEY = 'omega_v2_data';
@@ -9,60 +9,55 @@ const ANON_KEY = 'sb_publishable_34RidSlAX-HkuuxY73BcQg_lSGNlriO';
 export const dbService = {
   diagnoseConnection: async (): Promise<{ status: 'CONNECTED' | 'BLOCKED' | 'SERVER_ERROR' | 'OFFLINE', message?: string }> => {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-      
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/omega_store?select=id`, {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/omega_store?select=id&id=eq.1`, {
         method: 'GET',
         headers: { 
           'apikey': ANON_KEY, 
           'Content-Type': 'application/json',
           'X-Client-Info': 'omega-v2'
-        },
-        mode: 'cors',
-        signal: controller.signal
+        }
       });
       
-      clearTimeout(timeoutId);
-      
-      if (response.status === 404) {
-        return { status: 'SERVER_ERROR', message: 'Tabela omega_store não encontrada no Supabase.' };
-      }
+      if (response.status === 404) return { status: 'SERVER_ERROR', message: 'Estrutura não encontrada.' };
+      if (response.status === 401 || response.status === 403) return { status: 'BLOCKED', message: 'Acesso negado pelas políticas RLS.' };
 
       return { status: 'CONNECTED' };
     } catch (e: any) {
-      if (e.name === 'AbortError') return { status: 'OFFLINE', message: 'Conexão lenta.' };
-      if (e.message?.includes('fetch') || e.name === 'TypeError' || e.status === 0) {
-        return { 
-          status: 'BLOCKED', 
-          message: 'Bloqueio de rede detectado (AdBlock ou Firewall).' 
-        };
-      }
-      return { status: 'SERVER_ERROR', message: e.message };
+      return { status: 'OFFLINE', message: 'Sem conexão com o servidor.' };
     }
   },
 
   saveState: async (state: AppState): Promise<{ success: boolean; error?: string; isNetworkBlock?: boolean }> => {
+    // 1. Persistência Local (Segurança em primeiro lugar)
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
       console.error("Local storage error:", e);
     }
 
-    if (!supabase) return { success: false, error: "Supabase not initialized", isNetworkBlock: true };
+    if (!supabase) return { success: false, error: "Supabase offline", isNetworkBlock: true };
 
     try {
+      // Usamos UPSERT mas as políticas RLS agora garantem que só o ID 1 seja afetado
       const { error } = await supabase
         .from('omega_store')
-        .upsert({ id: 1, state: state }, { onConflict: 'id' });
+        .upsert({ 
+          id: 1, 
+          state: state,
+          updated_at: new Date().toISOString() 
+        }, { onConflict: 'id' });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '42501') throw new Error("Violação de Segurança: RLS bloqueou a gravação.");
+        throw error;
+      }
       return { success: true };
     } catch (e: any) {
-      const isBlock = e.message?.includes('fetch') || e.name === 'TypeError';
+      console.error("Erro ao salvar na nuvem:", e.message);
+      const isBlock = e.message?.includes('fetch') || e.name === 'TypeError' || e.message?.includes('RLS');
       return { 
         success: false, 
-        error: isBlock ? "Network Blocked" : e.message,
+        error: e.message,
         isNetworkBlock: isBlock
       };
     }
@@ -83,7 +78,7 @@ export const dbService = {
           return cloudState;
         }
       } catch (e) {
-        console.warn("Cloud load failed, fallback to local.");
+        console.warn("Falha ao carregar nuvem, usando cache local.");
       }
     }
 
@@ -94,21 +89,9 @@ export const dbService = {
     return null;
   },
 
-  fetchGlobalTeam: async (): Promise<any[] | null> => {
-    if (!supabase) return null;
-    try {
-      const { data, error } = await supabase
-        .from('omega_store')
-        .select('state')
-        .eq('id', 1)
-        .maybeSingle();
-      
-      if (!error && data?.state?.team) {
-        return data.state.team;
-      }
-    } catch (e) {
-      console.error("Global team fetch failed:", e);
-    }
-    return null;
+  // Fix: Added missing fetchGlobalTeam method used in Auth component to retrieve the team list from the cloud state
+  fetchGlobalTeam: async (): Promise<User[] | null> => {
+    const state = await dbService.loadState();
+    return state ? state.team : null;
   }
 };

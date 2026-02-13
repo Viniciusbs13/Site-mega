@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NAVIGATION_ITEMS } from '../constants';
 import { UserRole, User, DefaultUserRole } from '../types';
-import { Settings, LogOut, RefreshCw, ShieldCheck, ShieldAlert, WifiOff, Cloud, CloudOff, Loader2, X } from 'lucide-react';
+import { Settings, LogOut, RefreshCw, ShieldCheck, ShieldAlert, WifiOff, Cloud, CloudOff, Loader2, X, Check, Lock } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -21,11 +21,16 @@ const Sidebar: React.FC<SidebarProps> = ({
   isSynced = false, syncError = null, isNetworkBlocked = false,
   isOpen, onClose
 }) => {
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string>(new Date().toLocaleTimeString());
   const filteredNav = NAVIGATION_ITEMS.filter(item => (item.roles as string[]).includes(currentUser.role));
 
+  useEffect(() => {
+    if (isSynced) {
+      setLastSyncTime(new Date().toLocaleTimeString());
+    }
+  }, [isSynced]);
+
   const handleManualSync = () => {
-    setIsRefreshing(true);
     window.location.reload();
   };
 
@@ -73,26 +78,33 @@ const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         <div className="p-4 border-t border-white/5 space-y-4">
+          <div className="px-4 py-2 bg-black/40 rounded-xl border border-white/5 flex items-center gap-3">
+            <Lock className="w-3 h-3 text-teal-500/50" />
+            <span className="text-[8px] font-black text-gray-600 uppercase tracking-[0.2em]">Segurança RLS Ativa</span>
+          </div>
+
           {isNetworkBlocked ? (
             <div className="w-full flex flex-col gap-2 p-4 rounded-[24px] border bg-red-500/5 border-red-500/20">
                <div className="flex items-center gap-2">
                  <CloudOff className="w-4 h-4 text-red-500" />
-                 <span className="text-[10px] font-black uppercase text-red-500">Offline</span>
+                 <span className="text-[10px] font-black uppercase text-red-500">Modo Local</span>
                </div>
-               <p className="text-[8px] text-gray-600 font-bold uppercase leading-tight">Sincronização desativada por bloqueio de rede.</p>
+               <p className="text-[8px] text-gray-600 font-bold uppercase leading-tight">Sincronização bloqueada pela rede.</p>
             </div>
           ) : (
-            <div className={`flex flex-col gap-2 p-4 rounded-[24px] border transition-all duration-500 ${isSynced ? 'bg-teal-500/5 border-teal-500/20' : 'bg-yellow-500/5 border-yellow-500/20'}`}>
+            <div className={`flex flex-col gap-1 p-4 rounded-[24px] border transition-all duration-500 ${isSynced ? 'bg-teal-500/5 border-teal-500/20' : 'bg-yellow-500/5 border-yellow-500/20'}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {isSynced ? <Cloud className="w-4 h-4 text-teal-500" /> : <Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />}
                   <span className={`text-[10px] font-black uppercase tracking-widest ${isSynced ? 'text-teal-500' : 'text-yellow-500'}`}>
-                    {isSynced ? 'Cloud Ativa' : 'Sincronizando'}
+                    {isSynced ? 'Cloud Online' : 'Sincronizando'}
                   </span>
                 </div>
-                <button onClick={handleManualSync} className="p-1.5 hover:bg-white/10 rounded-lg text-gray-500">
-                  <RefreshCw className="w-3.5 h-3.5" />
-                </button>
+                {isSynced && <Check className="w-3 h-3 text-teal-500/50" />}
+              </div>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-[7px] text-gray-600 font-bold uppercase tracking-widest">Última: {lastSyncTime}</p>
+                <button onClick={handleManualSync} className="text-[7px] text-teal-500 hover:underline font-black uppercase">Atualizar</button>
               </div>
             </div>
           )}
@@ -112,7 +124,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             onClick={onLogout}
           >
             <LogOut className="w-4 h-4" />
-            <span>Encerrar Sessão</span>
+            <span>Sair do Workspace</span>
           </button>
         </div>
       </aside>

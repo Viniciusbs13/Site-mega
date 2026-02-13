@@ -56,17 +56,24 @@ const App: React.FC = () => {
   const skipSyncRef = useRef(false);
 
   const syncToCloud = useCallback(async (stateToSave?: any) => {
-    if (isLoading && !stateToSave) return;
+    if (isLoading || skipSyncRef.current || !currentUser) return;
+    
     const data = stateToSave || { team, availableRoles, db };
     const result = await dbService.saveState(data);
+    
+    if (!result.success && result.error?.includes('42501')) {
+      console.error("ERRO DE SEGURANÇA RLS: Verifique as permissões no Supabase Dashboard.");
+    }
+    
     setIsSynced(result.success);
     setIsNetworkBlocked(!!result.isNetworkBlock);
     setSyncError(result.error || null);
-  }, [team, availableRoles, db, isLoading]);
+  }, [team, availableRoles, db, isLoading, currentUser]);
 
   const loadEverything = async () => {
     const diag = await dbService.diagnoseConnection();
     setIsNetworkBlocked(diag.status === 'BLOCKED');
+    
     const saved = await dbService.loadState();
     if (saved) {
       skipSyncRef.current = true;
@@ -75,7 +82,7 @@ const App: React.FC = () => {
       setAvailableRoles(saved.availableRoles || Object.values(DefaultUserRole));
       setDb(saved.db);
       setIsSynced(diag.status === 'CONNECTED');
-      setTimeout(() => { skipSyncRef.current = false; }, 1000);
+      setTimeout(() => { skipSyncRef.current = false; }, 2000);
       return true;
     }
     return false;
@@ -91,12 +98,12 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isLoading && !skipSyncRef.current) {
-      const delay = isNetworkBlocked ? 20000 : 5000;
-      const saveTimeout = setTimeout(syncToCloud, delay);
+    if (!isLoading && !skipSyncRef.current && currentUser) {
+      const delay = isNetworkBlocked ? 60000 : 5000;
+      const saveTimeout = setTimeout(() => syncToCloud(), delay);
       return () => clearTimeout(saveTimeout);
     }
-  }, [team, availableRoles, db, isLoading, syncToCloud, isNetworkBlocked]);
+  }, [team, availableRoles, db, isLoading, syncToCloud, isNetworkBlocked, currentUser]);
 
   const handleUpdateTeamMember = (updatedUser: User) => {
     const newTeam = team.map(u => u.id === updatedUser.id ? updatedUser : u);
@@ -117,9 +124,9 @@ const App: React.FC = () => {
         </div>
         <div className="flex flex-col items-center gap-2 text-center">
           <div className="flex items-center gap-3 text-teal-500 font-black uppercase tracking-[0.4em] text-[11px] italic">
-            <Loader2 className="w-5 h-5 animate-spin" /> Sincronizando Core Ômega
+            <Loader2 className="w-5 h-5 animate-spin" /> Conectando ao Banco de Dados
           </div>
-          <p className="text-gray-700 text-[10px] font-bold uppercase tracking-widest">Acesso de Alta Performance</p>
+          <p className="text-gray-700 text-[10px] font-bold uppercase tracking-widest">Verificando Protocolos de Segurança</p>
         </div>
       </div>
     );
@@ -135,7 +142,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#0a0a0a] text-gray-300 overflow-hidden font-inter relative">
-      {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-[#0a0a0a] z-50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#14b8a6] rounded-lg flex items-center justify-center text-black font-black italic">Ω</div>
