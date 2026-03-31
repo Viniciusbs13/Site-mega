@@ -93,6 +93,16 @@ export interface SalesGoal {
   salesNotes?: string;
 }
 
+export interface Notice {
+  id: string;
+  title: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+}
+
 export interface MonthlyData {
   [monthYear: string]: {
     clients: Client[];
@@ -101,6 +111,7 @@ export interface MonthlyData {
     chatMessages?: ChatMessage[];
     drive?: DriveItem[];
     wiki?: DriveItem[];
+    notices?: Notice[];
   };
 }
 

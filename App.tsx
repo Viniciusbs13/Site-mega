@@ -10,6 +10,7 @@ import ManagerWorkspace from './components/ManagerWorkspace';
 import TeamView from './components/TeamView';
 import SalesView from './components/SalesView';
 import Auth from './components/Auth';
+import KnowledgeBase from './components/KnowledgeBase';
 import { dbService } from './services/database';
 import { Loader2, Menu, AlertTriangle } from 'lucide-react';
 
@@ -37,7 +38,7 @@ const App: React.FC = () => {
   const [availableRoles, setAvailableRoles] = useState<string[]>(Object.values(DefaultUserRole));
   
   const CEO_DEFAULT: User = { 
-    id: 'ceo-master', 
+    id: 'assessoriaomega1@gmail.com', 
     name: 'Diretoria Ômega', 
     email: 'assessoriaomega1@gmail.com', 
     password: 'admin', 
@@ -55,7 +56,9 @@ const App: React.FC = () => {
       totalSales: 0, 
       contractFormUrl: 'https://seulink.com/onboarding' 
     },
-    drive: []
+    drive: [],
+    wiki: [],
+    notices: []
   });
 
   const [team, setTeam] = useState<User[]>([CEO_DEFAULT]);
@@ -73,7 +76,9 @@ const App: React.FC = () => {
         clients: Array.isArray(monthData.clients) ? monthData.clients : [],
         tasks: Array.isArray(monthData.tasks) ? monthData.tasks : [],
         salesGoal: monthData.salesGoal || DEFAULT_MONTH_DATA().salesGoal,
-        drive: Array.isArray(monthData.drive) ? monthData.drive : []
+        drive: Array.isArray(monthData.drive) ? monthData.drive : [],
+        wiki: Array.isArray(monthData.wiki) ? monthData.wiki : [],
+        notices: Array.isArray(monthData.notices) ? monthData.notices : []
       };
     });
     return cleanDb;
@@ -85,7 +90,6 @@ const App: React.FC = () => {
 
     const unsubState = dbService.subscribeToGlobalState((data) => {
       if (skipSyncRef.current) return;
-      setDb(prev => ({ ...prev, ...normalizeDb(data.db) }));
       if (data.availableRoles) setAvailableRoles(data.availableRoles);
     });
 
@@ -100,6 +104,38 @@ const App: React.FC = () => {
       }
     });
 
+    return () => {
+      unsubState();
+      unsubTeam();
+    };
+  }, [currentUser]);
+
+  // Month-specific Sync
+  useEffect(() => {
+    if (!currentUser || !selectedMonth) return;
+
+    const unsubMonth = dbService.subscribeToMonth(selectedMonth, (data) => {
+      if (skipSyncRef.current) return;
+      setDb(prev => ({
+        ...prev,
+        [selectedMonth]: {
+          clients: Array.isArray(data.clients) ? data.clients : [],
+          tasks: Array.isArray(data.tasks) ? data.tasks : [],
+          salesGoal: data.salesGoal || DEFAULT_MONTH_DATA().salesGoal,
+          drive: Array.isArray(data.drive) ? data.drive : [],
+          wiki: Array.isArray(data.wiki) ? data.wiki : [],
+          notices: Array.isArray(data.notices) ? data.notices : []
+        }
+      }));
+    });
+
+    return () => unsubMonth();
+  }, [currentUser, selectedMonth]);
+
+  // Presence & Activity
+  useEffect(() => {
+    if (!currentUser) return;
+
     let unsubActivity = () => {};
     if (currentUser.role === DefaultUserRole.CEO) {
       unsubActivity = dbService.subscribeToActivity((data) => {
@@ -107,15 +143,12 @@ const App: React.FC = () => {
       });
     }
 
-    // Presence update every 30 seconds
     const presenceInterval = setInterval(() => {
       dbService.updateUserPresence(currentUser.id);
     }, 30000);
     dbService.updateUserPresence(currentUser.id);
 
     return () => {
-      unsubState();
-      unsubTeam();
       unsubActivity();
       clearInterval(presenceInterval);
     };
@@ -149,7 +182,11 @@ const App: React.FC = () => {
         setTimeout(() => { skipSyncRef.current = false; }, 1000);
         return true;
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err.message?.includes('Missing or insufficient permissions')) {
+        console.warn("Aviso: Algumas permissões estão restritas. O sistema continuará em modo limitado.");
+        return false;
+      }
       console.error("Erro crítico ao carregar dados:", err);
       setHasFatalError(true);
     }
@@ -159,6 +196,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const initApp = async () => {
       setIsLoading(true);
+      await dbService.ensureAuth();
       await loadEverything();
       setIsLoading(false);
     };
@@ -252,8 +290,9 @@ const App: React.FC = () => {
           {(() => {
             try {
               switch (activeTab) {
-                case 'dashboard': return <Dashboard clients={currentData.clients.filter(c => !c.isPaused)} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} activities={activities} />;
-                case 'team': return <TeamView team={team} currentUser={currentUser} availableRoles={availableRoles} onUpdateRole={(id, r) => { const next = team.map(u => u.id === id ? { ...u, role: r } : u); setTeam(next); syncToCloud({ team: next, availableRoles, db }); }} onAddMember={(name, role, email) => { const next = [...team, { id: Date.now().toString(), name, email: email.toLowerCase(), role, isActive: true }]; setTeam(next); syncToCloud({ team: next, availableRoles, db }); }} onRemoveMember={(id) => { if(id === 'ceo-master') return; const next = team.filter(u => u.id !== id); setTeam(next); syncToCloud({ team: next, availableRoles, db }); }} onAddRole={(role) => { const next = [...availableRoles, role]; setAvailableRoles(next); syncToCloud({ team, availableRoles: next, db }); }} onToggleActive={(id) => { const next = team.map(u => u.id === id ? { ...u, isActive: !u.isActive } : u); setTeam(next); syncToCloud({ team: next, availableRoles, db }); }} />;
+                case 'dashboard': return <Dashboard clients={currentData.clients.filter(c => !c.isPaused)} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} activities={activities} notices={currentData.notices || []} />;
+                case 'knowledge-base': return <KnowledgeBase wiki={currentData.wiki || []} notices={currentData.notices || []} currentUser={currentUser} onUpdateWiki={items => updateCurrentMonthData({ wiki: items })} onUpdateNotices={notices => updateCurrentMonthData({ notices })} />;
+                case 'team': return <TeamView team={team} currentUser={currentUser} availableRoles={availableRoles} onUpdateRole={(id, r) => { const next = team.map(u => u.id === id ? { ...u, role: r } : u); setTeam(next); syncToCloud({ team: next, availableRoles, db }); }} onAddMember={(name, role, email) => { const next = [...team, { id: email.toLowerCase(), name, email: email.toLowerCase(), role, isActive: true }]; setTeam(next); syncToCloud({ team: next, availableRoles, db }); }} onRemoveMember={(id) => { if(id === CEO_DEFAULT.id) return; const next = team.filter(u => u.id !== id); setTeam(next); syncToCloud({ team: next, availableRoles, db }); }} onAddRole={(role) => { const next = [...availableRoles, role]; setAvailableRoles(next); syncToCloud({ team, availableRoles: next, db }); }} onToggleActive={(id) => { const next = team.map(u => u.id === id ? { ...u, isActive: !u.isActive } : u); setTeam(next); syncToCloud({ team: next, availableRoles, db }); }} />;
                 case 'commercial': return <SalesView goal={currentData.salesGoal} team={team} clients={currentData.clients} currentUser={currentUser} onUpdateGoal={u => updateCurrentMonthData({ salesGoal: { ...currentData.salesGoal, ...u } })} onRegisterSale={(uid, val, cname) => { setTeam(prev => prev.map(usr => usr.id === uid ? { ...usr, salesVolume: (usr.salesVolume || 0) + val } : usr)); const newClient: Client = { id: Date.now().toString(), name: cname, industry: 'Novo Contrato', health: 'Estável', progress: 0, managerId: '', salesId: uid, contractValue: val, statusFlag: 'GREEN', isPaused: false, folder: { briefing: '', accessLinks: '', operationalHistory: '' } }; updateCurrentMonthData({ salesGoal: { ...currentData.salesGoal, currentValue: currentData.salesGoal.currentValue + val, totalSales: currentData.salesGoal.totalSales + 1 }, clients: [...currentData.clients, newClient] }); }} onUpdateUserGoal={(id, pg, sg) => setTeam(prev => prev.map(u => u.id === id ? { ...u, personalGoal: pg, superGoal: sg } : u))} onUpdateClientNotes={(cid, n) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === cid ? { ...c, closingNotes: n } : c) })} />;
                 case 'checklists': return <ChecklistView tasks={currentData.tasks} currentUser={currentUser} onAddTask={t => updateCurrentMonthData({ tasks: [{ ...t, id: Date.now().toString() } as Task, ...currentData.tasks] })} onRemoveTask={id => updateCurrentMonthData({ tasks: currentData.tasks.filter(t => t.id !== id) })} />;
                 case 'my-workspace': return <ManagerWorkspace managerId={currentUser.id} clients={currentData.clients} tasks={currentData.tasks} currentUser={currentUser} drive={currentData.drive || []} onUpdateDrive={items => updateCurrentMonthData({ drive: items })} onToggleTask={id => updateCurrentMonthData({ tasks: currentData.tasks.map(t => t.id === id ? { ...t, status: t.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED' } : t) })} onUpdateNotes={(id, n) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, notes: n } : c) })} onUpdateStatusFlag={(id, f) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, statusFlag: f } : c) })} onUpdateFolder={(id, f) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, folder: { ...c.folder, ...f } } : c) })} />;

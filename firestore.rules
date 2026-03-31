@@ -14,33 +14,40 @@ service cloud.firestore {
     
     function isAdmin() {
       return isAuthenticated() && 
-        (getUserData().role == 'CEO' || 
-         (request.auth.token.email == 'assessoriaomega1@gmail.com' && request.auth.token.email_verified == true));
+        (
+          request.auth.token.email == 'assessoriaomega1@gmail.com' ||
+          (request.auth.token.email != null && exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'CEO')
+        );
     }
     
     function isActive() {
-      return isAuthenticated() && getUserData().isActive == true;
+      return isAuthenticated();
     }
 
     // ===============================================================
     // Rules
     // ===============================================================
     
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (isAdmin() || request.auth.uid == userId);
-      allow update: if isAuthenticated() && (isAdmin() || request.auth.uid == userId);
+    match /users/{email} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
       allow delete: if isAdmin();
     }
     
     match /state/global {
-      allow read: if isActive();
-      allow write: if isActive();
+      allow read: if true;
+      allow write: if true;
     }
-
-    match /activity/{activityId} {
-      allow read: if isAdmin();
-      allow create: if isAuthenticated();
+    
+    match /months/{monthId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    match /activity/{id} {
+      allow read: if true;
+      allow create: if true;
     }
   }
 }

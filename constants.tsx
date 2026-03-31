@@ -6,15 +6,17 @@ import {
   Briefcase, 
   Calendar,
   Users,
-  Target
+  Target,
+  FolderOpen
 } from 'lucide-react';
 import { DefaultUserRole, ClientStatus, Client } from './types';
 
 export const NAVIGATION_ITEMS = [
-  { id: 'dashboard', label: 'Painel', icon: <LayoutDashboard className="w-5 h-5" />, roles: [DefaultUserRole.CEO, DefaultUserRole.MANAGER, DefaultUserRole.SOCIAL_MEDIA, DefaultUserRole.EDITOR, DefaultUserRole.CAPTADOR] },
+  { id: 'dashboard', label: 'Painel', icon: <LayoutDashboard className="w-5 h-5" />, roles: [DefaultUserRole.CEO, DefaultUserRole.MANAGER, DefaultUserRole.SOCIAL_MEDIA, DefaultUserRole.EDITOR, DefaultUserRole.CAPTADOR, DefaultUserRole.SALES] },
   { id: 'commercial', label: 'Vendas & Metas', icon: <Target className="w-5 h-5" />, roles: [DefaultUserRole.SALES, DefaultUserRole.CEO] },
   { id: 'checklists', label: 'Checklists Diários', icon: <Calendar className="w-5 h-5" />, roles: [DefaultUserRole.CEO, DefaultUserRole.SALES, DefaultUserRole.MANAGER, DefaultUserRole.SOCIAL_MEDIA, DefaultUserRole.EDITOR, DefaultUserRole.CAPTADOR] },
   { id: 'my-workspace', label: 'Minha Gestão', icon: <CheckSquare className="w-5 h-5" />, roles: [DefaultUserRole.MANAGER, DefaultUserRole.SOCIAL_MEDIA, DefaultUserRole.EDITOR, DefaultUserRole.CAPTADOR, DefaultUserRole.CEO] },
+  { id: 'knowledge-base', label: 'Wiki & Comunicados', icon: <FolderOpen className="w-5 h-5" />, roles: [DefaultUserRole.CEO, DefaultUserRole.MANAGER, DefaultUserRole.SOCIAL_MEDIA, DefaultUserRole.EDITOR, DefaultUserRole.CAPTADOR, DefaultUserRole.SALES] },
   { id: 'clients', label: 'CRM Clientes', icon: <Briefcase className="w-5 h-5" />, roles: [DefaultUserRole.CEO] },
   { id: 'team', label: 'Equipe', icon: <Users className="w-5 h-5" />, roles: [DefaultUserRole.CEO] },
 ];

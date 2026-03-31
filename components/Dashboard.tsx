@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Client, Task, User, DefaultUserRole } from '../types';
-import { LayoutDashboard, ArrowRight, ChevronRight, FileText, Clock, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Client, Task, User, DefaultUserRole, Notice } from '../types';
+import { LayoutDashboard, ArrowRight, ChevronRight, FileText, Clock, AlertTriangle, ShieldAlert, Megaphone } from 'lucide-react';
 
 interface DashboardProps {
   clients: Client[];
@@ -11,9 +11,10 @@ interface DashboardProps {
   onMonthChange: (month: string) => void;
   months: string[];
   activities?: any[];
+  notices?: Notice[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ clients, tasks, currentUser, currentMonth, onMonthChange, months, activities = [] }) => {
+const Dashboard: React.FC<DashboardProps> = ({ clients, tasks, currentUser, currentMonth, onMonthChange, months, activities = [], notices = [] }) => {
   const isCEO = currentUser.role === DefaultUserRole.CEO;
   const filteredClients = isCEO ? clients : clients.filter(c => c.managerId === currentUser.id);
   const filteredTasks = isCEO ? tasks : tasks.filter(t => t.assignedTo === currentUser.id || t.assignedTo === 'ALL');
@@ -113,6 +114,27 @@ const Dashboard: React.FC<DashboardProps> = ({ clients, tasks, currentUser, curr
                       <p className="text-[9px] text-gray-500 truncate">{act.action}</p>
                       <p className="text-[7px] text-gray-700 font-black uppercase mt-0.5">{new Date(act.timestamp).toLocaleTimeString()}</p>
                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {notices.length > 0 && (
+            <div className="bg-[#111] border border-white/5 rounded-[32px] p-6 flex flex-col h-[250px]">
+              <div className="flex items-center gap-2 mb-4">
+                <Megaphone className="w-4 h-4 text-teal-500" />
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">Comunicados</span>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">
+                {notices.slice(0, 5).map(notice => (
+                  <div key={notice.id} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold text-white uppercase truncate">{notice.title}</p>
+                      <span className={`text-[7px] font-black px-1 rounded ${notice.priority === 'HIGH' ? 'bg-red-500/20 text-red-500' : 'bg-teal-500/20 text-teal-500'}`}>{notice.priority}</span>
+                    </div>
+                    <p className="text-[9px] text-gray-500 line-clamp-2">{notice.content}</p>
+                    <p className="text-[7px] text-gray-700 font-black uppercase">{new Date(notice.createdAt).toLocaleDateString()}</p>
                   </div>
                 ))}
               </div>

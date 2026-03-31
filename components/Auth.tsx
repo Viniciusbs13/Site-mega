@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { User } from '../types';
+import { User, DefaultUserRole } from '../types';
 import { dbService } from '../services/database';
+import { auth, googleProvider, signInWithPopup } from '../firebase';
+import { MONTHS } from '../constants';
 import { 
   ShieldCheck as ShieldIcon, 
   Mail as MailIcon, 
@@ -10,7 +12,8 @@ import {
   AlertCircle as AlertIcon,
   RefreshCw,
   WifiOff,
-  Loader2
+  Loader2,
+  Chrome
 } from 'lucide-react';
 
 interface AuthProps {
@@ -30,10 +33,76 @@ const Auth: React.FC<AuthProps> = ({ team, onLogin, onUpdateUser }) => {
   const [targetUser, setTargetUser] = useState<User | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     dbService.diagnoseConnection().then(d => setIsBlocked(d.status === 'BLOCKED'));
   }, []);
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    setIsLoggingIn(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const userEmail = result.user.email?.toLowerCase();
+      
+      if (!userEmail) throw new Error('Email não retornado pelo Google.');
+
+      // 1. Check if user exists in Firestore by email ID
+      let user = await dbService.getUserById(userEmail);
+      
+      if (user) {
+        if (!user.isActive) throw new Error('Acesso suspenso.');
+        onLogin(user);
+        return;
+      }
+
+      // 2. CEO Bootstrap
+      if (userEmail === 'assessoriaomega1@gmail.com') {
+        const currentYear = new Date().getFullYear();
+        const currentMonthName = MONTHS[new Date().getMonth()];
+        const monthKey = `${currentMonthName} ${currentYear}`;
+
+        const ceo: User = { 
+          id: userEmail, 
+          name: result.user.displayName || 'Diretoria Ômega', 
+          email: userEmail, 
+          password: 'admin', 
+          role: DefaultUserRole.CEO, 
+          isActive: true 
+        };
+        // Save to Firestore immediately with correct structure
+        await dbService.saveState({ 
+          team: [ceo], 
+          availableRoles: Object.values(DefaultUserRole), 
+          db: { 
+            [monthKey]: { 
+              clients: [], 
+              tasks: [], 
+              salesGoal: { 
+                monthlyTarget: 100000, 
+                monthlySuperTarget: 150000, 
+                currentValue: 0, 
+                totalSales: 0, 
+                contractFormUrl: 'https://seulink.com/onboarding' 
+              },
+              drive: [],
+              wiki: [],
+              notices: []
+            } 
+          } 
+        } as any);
+        onLogin(ceo);
+        return;
+      }
+
+      throw new Error('Email não autorizado. Peça ao administrador para adicionar seu email.');
+    } catch (err: any) {
+      setError(err.message || 'Erro ao entrar com Google.');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
 
   const handleInitialCheck = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,17 +110,9 @@ const Auth: React.FC<AuthProps> = ({ team, onLogin, onUpdateUser }) => {
     setIsSearching(true);
     const cleanEmail = email.trim().toLowerCase();
     
-    // First check local team prop
-    let user = team.find(u => u.email.toLowerCase() === cleanEmail);
+    // Check cloud directly using email ID
+    const user = await dbService.getUserById(cleanEmail);
     
-    // Then check cloud directly to be sure
-    if (!user || user.email.toLowerCase() === 'assessoriaomega1@gmail.com') {
-      const cloudTeam = await dbService.fetchGlobalTeam();
-      if (cloudTeam) {
-        const found = cloudTeam.find((u: any) => u.email.toLowerCase() === cleanEmail);
-        if (found) user = found;
-      }
-    }
     setIsSearching(false);
     if (!user) {
       setError(`Acesso não localizado.`);
@@ -119,18 +180,33 @@ const Auth: React.FC<AuthProps> = ({ team, onLogin, onUpdateUser }) => {
         )}
 
         {mode === 'LOGIN' && !targetUser && (
-          <form onSubmit={handleInitialCheck} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-2">Email Corporativo</label>
-              <div className="relative">
-                <MailIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
-                <input required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" className="w-full bg-black border border-white/5 rounded-2xl py-4 md:py-5 pl-14 pr-6 text-white text-sm outline-none focus:border-teal-500/50 transition-all placeholder:text-gray-800" />
+          <div className="space-y-6">
+            <form onSubmit={handleInitialCheck} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-2">Email Corporativo</label>
+                <div className="relative">
+                  <MailIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                  <input required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" className="w-full bg-black border border-white/5 rounded-2xl py-4 md:py-5 pl-14 pr-6 text-white text-sm outline-none focus:border-teal-500/50 transition-all placeholder:text-gray-800" />
+                </div>
               </div>
+              <button type="submit" disabled={isSearching || isLoggingIn} className="w-full bg-[#14b8a6] text-black py-4 md:py-5 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] transition-all flex items-center justify-center gap-3 text-sm">
+                {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <>AVANÇAR <ArrowIcon className="w-4 h-4" /></>}
+              </button>
+            </form>
+
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
+              <div className="relative flex justify-center text-[8px] uppercase font-black text-gray-700 tracking-widest bg-[#111] px-4">Ou use sua conta</div>
             </div>
-            <button type="submit" disabled={isSearching} className="w-full bg-[#14b8a6] text-black py-4 md:py-5 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] transition-all flex items-center justify-center gap-3 text-sm">
-              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <>AVANÇAR <ArrowIcon className="w-4 h-4" /></>}
+
+            <button 
+              onClick={handleGoogleLogin} 
+              disabled={isLoggingIn || isSearching}
+              className="w-full bg-white/5 border border-white/10 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-3 text-[10px]"
+            >
+              {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Chrome className="w-4 h-4 text-teal-500" /> ENTRAR COM GOOGLE</>}
             </button>
-          </form>
+          </div>
         )}
 
         {mode === 'LOGIN' && targetUser && (
