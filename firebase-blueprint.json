@@ -39,6 +39,19 @@
         "timestamp": { "type": "string" }
       },
       "required": ["id", "userId", "userName", "action", "timestamp"]
+    },
+    "MonthlyData": {
+      "title": "Monthly Data",
+      "description": "Operational data for a specific month",
+      "type": "object",
+      "properties": {
+        "clients": { "type": "array" },
+        "tasks": { "type": "array" },
+        "salesGoal": { "type": "object" },
+        "wiki": { "type": "array" },
+        "notices": { "type": "array" },
+        "drive": { "type": "array" }
+      }
     }
   },
   "firestore": {
@@ -48,7 +61,11 @@
     },
     "/state/global": {
       "schema": "AppState",
-      "description": "Global state including clients and tasks"
+      "description": "Global configuration and shared state"
+    },
+    "/months/{monthId}": {
+      "schema": "MonthlyData",
+      "description": "Operational data for a specific month"
     },
     "/activity/{activityId}": {
       "schema": "Activity",

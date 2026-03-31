@@ -8,46 +8,70 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
-    
+
     function isAdmin() {
       return isAuthenticated() && 
         (
           request.auth.token.email == 'assessoriaomega1@gmail.com' ||
-          (request.auth.token.email != null && exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'CEO')
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CEO')
         );
     }
-    
-    function isActive() {
-      return isAuthenticated();
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'role', 'isActive']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string &&
+             data.role is string &&
+             data.isActive is bool;
+    }
+
+    function isValidActivity(data) {
+      return data.keys().hasAll(['id', 'userId', 'userName', 'action', 'timestamp']) &&
+             data.id is string &&
+             data.userId is string &&
+             data.userName is string &&
+             data.action is string &&
+             data.timestamp is string;
     }
 
     // ===============================================================
     // Rules
     // ===============================================================
     
-    match /users/{email} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
+    match /users/{userId} {
+      // Allow any authenticated user to read the team list
+      allow read: if isAuthenticated();
+      // Allow creation of users by any authenticated user (bootstrapping)
+      // but only owner or admin can update
+      allow create: if isAuthenticated() && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data);
       allow delete: if isAdmin();
     }
     
     match /state/global {
+      // Allow anyone to read global state for initial app config
       allow read: if true;
-      allow write: if true;
+      // Allow creation by any authenticated user (bootstrapping)
+      // but only admin can update
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
     }
     
     match /months/{monthId} {
-      allow read: if true;
-      allow write: if true;
+      // Allow any authenticated user to read months data
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
     
     match /activity/{id} {
-      allow read: if true;
-      allow create: if true;
+      // Allow any authenticated user to read activity logs
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidActivity(request.resource.data);
     }
   }
 }
