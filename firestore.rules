@@ -19,9 +19,7 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && 
         (
-          (request.auth.token.email == 'assessoriaomega1@gmail.com' && request.auth.token.email_verified == true) ||
-          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CEO') ||
+          (request.auth.token.email != null && request.auth.token.email.lower() == 'assessoriaomega1@gmail.com') ||
           (request.auth.token.email != null && 
            exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) && 
            get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.role == 'CEO')
@@ -29,9 +27,8 @@ service cloud.firestore {
     }
 
     function isValidUser(data) {
-      return data.keys().hasAll(['id', 'name', 'email', 'role', 'isActive']) &&
-             data.id is string &&
-             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+      return data.id is string &&
+             data.name is string && data.name.size() > 0 &&
              data.email is string &&
              data.role is string &&
              data.isActive is bool;
@@ -51,12 +48,9 @@ service cloud.firestore {
     // ===============================================================
     
     match /users/{userId} {
-      // Allow any authenticated user to read the team list
       allow read: if isAuthenticated();
-      // Allow creation of users by any authenticated user (bootstrapping)
-      // but only owner or admin can update
-      allow create: if isAuthenticated() && isValidUser(request.resource.data);
-      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data);
+      allow create, update: if isAdmin() || isOwner(userId) || 
+                             (isAuthenticated() && !('password' in resource.data));
       allow delete: if isAdmin();
     }
     
