@@ -168,10 +168,15 @@ const TeamView: React.FC<TeamViewProps> = ({
                     <AtSign className="w-3 h-3 text-teal-500/50" />
                     <span className="text-[10px] text-gray-400 font-bold lowercase truncate max-w-[150px]">{member.email}</span>
                   </div>
-                  <div className="mt-2">
+                  <div className="mt-2 flex items-center gap-2">
                     <span className={`text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full ${member.isActive ? 'bg-teal-500/10 text-teal-500' : 'bg-red-500/10 text-red-500'}`}>
                       {member.isActive ? 'Ativo' : 'Suspenso'}
                     </span>
+                    {member.isActive && member.lastActive && (new Date().getTime() - new Date(member.lastActive).getTime() < 120000) && (
+                      <span className="flex items-center gap-1 text-[8px] font-black tracking-widest uppercase text-green-500 animate-pulse">
+                        <span className="w-1 h-1 bg-green-500 rounded-full"></span> Online
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

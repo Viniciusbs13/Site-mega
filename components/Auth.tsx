@@ -40,11 +40,16 @@ const Auth: React.FC<AuthProps> = ({ team, onLogin, onUpdateUser }) => {
     setError('');
     setIsSearching(true);
     const cleanEmail = email.trim().toLowerCase();
+    
+    // First check local team prop
     let user = team.find(u => u.email.toLowerCase() === cleanEmail);
-    if (!user) {
+    
+    // Then check cloud directly to be sure
+    if (!user || user.email.toLowerCase() === 'assessoriaomega1@gmail.com') {
       const cloudTeam = await dbService.fetchGlobalTeam();
       if (cloudTeam) {
-        user = cloudTeam.find((u: any) => u.email.toLowerCase() === cleanEmail);
+        const found = cloudTeam.find((u: any) => u.email.toLowerCase() === cleanEmail);
+        if (found) user = found;
       }
     }
     setIsSearching(false);

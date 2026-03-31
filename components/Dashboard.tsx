@@ -10,9 +10,10 @@ interface DashboardProps {
   currentMonth: string;
   onMonthChange: (month: string) => void;
   months: string[];
+  activities?: any[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ clients, tasks, currentUser, currentMonth, onMonthChange, months }) => {
+const Dashboard: React.FC<DashboardProps> = ({ clients, tasks, currentUser, currentMonth, onMonthChange, months, activities = [] }) => {
   const isCEO = currentUser.role === DefaultUserRole.CEO;
   const filteredClients = isCEO ? clients : clients.filter(c => c.managerId === currentUser.id);
   const filteredTasks = isCEO ? tasks : tasks.filter(t => t.assignedTo === currentUser.id || t.assignedTo === 'ALL');
@@ -80,20 +81,43 @@ const Dashboard: React.FC<DashboardProps> = ({ clients, tasks, currentUser, curr
           </div>
         </div>
 
-        <div className="bg-[#14b8a6] rounded-[32px] p-6 md:p-10 flex flex-col justify-between text-black relative overflow-hidden">
-          <div className="absolute top-[-20px] right-[-20px] opacity-10">
-            <span className="text-[150px] font-black italic">Ω</span>
+        <div className="flex flex-col gap-4">
+          <div className="bg-[#14b8a6] rounded-[32px] p-6 md:p-10 flex flex-col justify-between text-black relative overflow-hidden flex-1">
+            <div className="absolute top-[-20px] right-[-20px] opacity-10">
+              <span className="text-[150px] font-black italic">Ω</span>
+            </div>
+            <div className="relative z-10">
+              <p className="text-sm font-bold mb-2 italic uppercase">{currentMonth}</p>
+              <h3 className="text-2xl md:text-4xl font-black leading-tight tracking-tighter mb-6 md:mb-8 uppercase italic">
+                Foco na <br className="hidden md:block"/> Operação.
+              </h3>
+            </div>
+            <div className="p-3 bg-black/10 rounded-xl">
+               <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Status de Rede</p>
+               <p className="text-[10px] font-bold">Protocolo Seguro</p>
+            </div>
           </div>
-          <div className="relative z-10">
-            <p className="text-sm font-bold mb-2 italic uppercase">{currentMonth}</p>
-            <h3 className="text-2xl md:text-4xl font-black leading-tight tracking-tighter mb-6 md:mb-8 uppercase italic">
-              Foco na <br className="hidden md:block"/> Operação.
-            </h3>
-          </div>
-          <div className="p-3 bg-black/10 rounded-xl">
-             <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Status de Rede</p>
-             <p className="text-[10px] font-bold">Protocolo Seguro</p>
-          </div>
+
+          {isCEO && activities.length > 0 && (
+            <div className="bg-[#111] border border-white/5 rounded-[32px] p-6 flex flex-col h-[250px]">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="w-4 h-4 text-teal-500" />
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">Atividade Recente</span>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
+                {activities.map(act => (
+                  <div key={act.id} className="flex gap-3 items-start">
+                    <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center text-[8px] font-black text-teal-500 shrink-0 mt-0.5">{act.userName[0]}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-white truncate">{act.userName}</p>
+                      <p className="text-[9px] text-gray-500 truncate">{act.action}</p>
+                      <p className="text-[7px] text-gray-700 font-black uppercase mt-0.5">{new Date(act.timestamp).toLocaleTimeString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

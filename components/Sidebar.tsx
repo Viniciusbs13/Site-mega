@@ -14,15 +14,22 @@ interface SidebarProps {
   isNetworkBlocked?: boolean;
   isOpen: boolean;
   onClose: () => void;
+  team: User[];
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
   activeTab, setActiveTab, currentUser, onLogout, 
   isSynced = false, syncError = null, isNetworkBlocked = false,
-  isOpen, onClose
+  isOpen, onClose, team
 }) => {
   const [lastSyncTime, setLastSyncTime] = useState<string>(new Date().toLocaleTimeString());
   const filteredNav = NAVIGATION_ITEMS.filter(item => (item.roles as string[]).includes(currentUser.role));
+
+  const activeUsers = team.filter(u => 
+    u.isActive && 
+    u.lastActive && 
+    (new Date().getTime() - new Date(u.lastActive).getTime() < 120000)
+  );
 
   useEffect(() => {
     if (isSynced) {
@@ -75,6 +82,23 @@ const Sidebar: React.FC<SidebarProps> = ({
               {item.label}
             </button>
           ))}
+
+          {/* Seção Online */}
+          {activeUsers.length > 0 && (
+            <div className="mt-8 px-4 py-2">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Operadores Online ({activeUsers.length})</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {activeUsers.map(u => (
+                  <div key={u.id} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-black text-teal-500 italic" title={u.name}>
+                    {u.name[0]}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </nav>
 
         <div className="p-4 border-t border-white/5 space-y-4">

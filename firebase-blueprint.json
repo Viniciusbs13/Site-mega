@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "App user/collaborator",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "lastActive": { "type": "string" },
+        "salesCount": { "type": "number" },
+        "salesVolume": { "type": "number" },
+        "personalGoal": { "type": "number" },
+        "superGoal": { "type": "number" }
+      },
+      "required": ["id", "name", "email", "role", "isActive"]
+    },
+    "AppState": {
+      "title": "AppState",
+      "description": "Global application state",
+      "type": "object",
+      "properties": {
+        "availableRoles": { "type": "array", "items": { "type": "string" } },
+        "db": { "type": "object" }
+      }
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "Recent system activity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "userId", "userName", "action", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and roles"
+    },
+    "/state/global": {
+      "schema": "AppState",
+      "description": "Global state including clients and tasks"
+    },
+    "/activity/{activityId}": {
+      "schema": "Activity",
+      "description": "Recent system activities"
+    }
+  }
+}

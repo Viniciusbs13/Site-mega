@@ -41,6 +41,7 @@ export interface User {
   salesVolume?: number;
   personalGoal?: number;
   superGoal?: number;
+  lastActive?: string;
 }
 
 export interface ClientFolder {
