@@ -84,9 +84,17 @@ const App: React.FC = () => {
     return cleanDb;
   };
 
+  const currentUserRef = useRef(currentUser);
+  const activeTabRef = useRef(activeTab);
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+    activeTabRef.current = activeTab;
+  }, [currentUser, activeTab]);
+
   // Real-time Sync
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser?.id) return;
 
     const unsubState = dbService.subscribeToGlobalState((data) => {
       if (skipSyncRef.current) return;
@@ -96,17 +104,26 @@ const App: React.FC = () => {
     const unsubTeam = dbService.subscribeToTeam((users) => {
       if (skipSyncRef.current) return;
       
+      const current = currentUserRef.current;
+      if (!current) return;
+
       // Update local team
       const ceoFromDb = users.find(u => u.email?.toLowerCase() === CEO_DEFAULT.email.toLowerCase());
       const otherMembers = users.filter(u => u.email?.toLowerCase() !== CEO_DEFAULT.email.toLowerCase());
       setTeam([ceoFromDb || CEO_DEFAULT, ...otherMembers]);
 
       // CRITICAL: Update current user role if changed in DB
-      const dbUser = users.find(u => u.id === currentUser.id);
-      if (dbUser && (dbUser.role !== currentUser.role || dbUser.isActive !== currentUser.isActive)) {
-        const updatedUser = { ...currentUser, role: dbUser.role, isActive: dbUser.isActive };
+      const dbUser = users.find(u => u.id === current.id);
+      if (dbUser && (dbUser.role !== current.role || dbUser.isActive !== current.isActive)) {
+        const updatedUser = { ...current, role: dbUser.role, isActive: dbUser.isActive };
         setCurrentUser(updatedUser);
         localStorage.setItem('omega_session_user', JSON.stringify(updatedUser));
+        
+        // Reset tab if current tab is not allowed for new role
+        const allowedTabs = NAVIGATION_ITEMS.filter(item => (item.roles as string[]).includes(dbUser.role)).map(i => i.id);
+        if (!allowedTabs.includes(activeTabRef.current)) {
+          setActiveTab('dashboard');
+        }
       }
     });
 
