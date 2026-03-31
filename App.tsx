@@ -95,12 +95,18 @@ const App: React.FC = () => {
 
     const unsubTeam = dbService.subscribeToTeam((users) => {
       if (skipSyncRef.current) return;
-      // Ensure CEO is always present and correct
-      const hasCeo = users.some(u => u.email.toLowerCase() === CEO_DEFAULT.email.toLowerCase());
-      if (!hasCeo) {
-        setTeam([CEO_DEFAULT, ...users]);
-      } else {
-        setTeam(users);
+      
+      // Update local team
+      const ceoFromDb = users.find(u => u.email?.toLowerCase() === CEO_DEFAULT.email.toLowerCase());
+      const otherMembers = users.filter(u => u.email?.toLowerCase() !== CEO_DEFAULT.email.toLowerCase());
+      setTeam([ceoFromDb || CEO_DEFAULT, ...otherMembers]);
+
+      // CRITICAL: Update current user role if changed in DB
+      const dbUser = users.find(u => u.id === currentUser.id);
+      if (dbUser && (dbUser.role !== currentUser.role || dbUser.isActive !== currentUser.isActive)) {
+        const updatedUser = { ...currentUser, role: dbUser.role, isActive: dbUser.isActive };
+        setCurrentUser(updatedUser);
+        localStorage.setItem('omega_session_user', JSON.stringify(updatedUser));
       }
     });
 
@@ -108,7 +114,7 @@ const App: React.FC = () => {
       unsubState();
       unsubTeam();
     };
-  }, [currentUser]);
+  }, [currentUser?.id]); // Only re-run if user ID changes
 
   // Month-specific Sync
   useEffect(() => {
@@ -154,17 +160,23 @@ const App: React.FC = () => {
     };
   }, [currentUser]);
 
-  const syncToCloud = useCallback(async (stateToSave?: any) => {
-    if (isLoading || !currentUser) return;
-    const data = stateToSave || { team, availableRoles, db };
-    
-    // Optimistic update prevention: we don't want to trigger a sync from a sync
-    skipSyncRef.current = true;
-    const result = await dbService.saveState(data);
-    setIsSynced(result.success);
-    setSyncError(result.error || null);
-    setTimeout(() => { skipSyncRef.current = false; }, 1000);
-  }, [team, availableRoles, db, isLoading, currentUser]);
+  const getDefaultTab = (role: UserRole): string => {
+    switch (role) {
+      case DefaultUserRole.CEO: return 'dashboard';
+      case DefaultUserRole.MANAGER: return 'my-workspace';
+      case DefaultUserRole.SALES: return 'commercial';
+      default: return 'my-workspace';
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      const defaultTab = getDefaultTab(currentUser.role);
+      if (activeTab === 'dashboard' && defaultTab !== 'dashboard') {
+        setActiveTab(defaultTab);
+      }
+    }
+  }, [currentUser?.role]);
 
   const loadEverything = async () => {
     try {
@@ -174,9 +186,12 @@ const App: React.FC = () => {
       const saved = await dbService.loadState();
       if (saved) {
         skipSyncRef.current = true;
+        
+        const ceoFromDb = (saved.team || []).find((u: User) => u.email?.toLowerCase() === CEO_DEFAULT.email.toLowerCase());
         const otherMembers = (saved.team || []).filter((u: User) => u.email?.toLowerCase() !== CEO_DEFAULT.email.toLowerCase());
-        setTeam([CEO_DEFAULT, ...otherMembers]);
-        setAvailableRoles(saved.availableRoles || Object.values(DefaultUserRole));
+        
+        setTeam([ceoFromDb || CEO_DEFAULT, ...otherMembers]);
+        setAvailableRoles(saved.availableRoles && saved.availableRoles.length > 0 ? saved.availableRoles : Object.values(DefaultUserRole));
         setDb(normalizeDb(saved.db));
         setIsSynced(diag.status === 'CONNECTED');
         setTimeout(() => { skipSyncRef.current = false; }, 1000);
@@ -203,14 +218,6 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
-  useEffect(() => {
-    if (!isLoading && !skipSyncRef.current && currentUser && !hasFatalError) {
-      const delay = isNetworkBlocked ? 60000 : 10000;
-      const saveTimeout = setTimeout(() => syncToCloud(), delay);
-      return () => clearTimeout(saveTimeout);
-    }
-  }, [team, availableRoles, db, isLoading, syncToCloud, isNetworkBlocked, currentUser, hasFatalError]);
-
   const handleLogin = (u: User) => {
     localStorage.setItem('omega_session_user', JSON.stringify(u));
     setCurrentUser(u);
@@ -226,11 +233,25 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
 
-  const updateCurrentMonthData = (updates: Partial<MonthlyData[string]>) => {
+  const updateCurrentMonthData = useCallback(async (updates: Partial<MonthlyData[string]> | ((prev: MonthlyData[string]) => Partial<MonthlyData[string]>)) => {
+    let finalUpdates: Partial<MonthlyData[string]> = {};
+    
     setDb(prev => {
       const currentMonthContent = prev[selectedMonth] || DEFAULT_MONTH_DATA();
-      return { ...prev, [selectedMonth]: { ...currentMonthContent, ...updates } };
+      finalUpdates = typeof updates === 'function' ? updates(currentMonthContent) : updates;
+      const newContent = { ...currentMonthContent, ...finalUpdates };
+      return { ...prev, [selectedMonth]: newContent };
     });
+
+    // Save to cloud OUTSIDE of setDb
+    await dbService.saveMonthData(selectedMonth, finalUpdates);
+  }, [selectedMonth]);
+
+  const handleUpdateUser = async (u: User) => {
+    setTeam(prev => prev.map(m => m.id === u.id ? u : m));
+    const result = await dbService.saveUser(u);
+    setIsSynced(result.success);
+    setSyncError(result.error || null);
   };
 
   if (hasFatalError) {
@@ -258,7 +279,7 @@ const App: React.FC = () => {
     );
   }
 
-  if (!currentUser) return <Auth team={team} onLogin={handleLogin} onUpdateUser={(u) => { setTeam(prev => prev.map(m => m.id === u.id ? u : m)); syncToCloud(); }} />;
+  if (!currentUser) return <Auth team={team} onLogin={handleLogin} onUpdateUser={handleUpdateUser} />;
 
   const currentData = (db && db[selectedMonth]) ? db[selectedMonth] : DEFAULT_MONTH_DATA();
 
@@ -292,11 +313,51 @@ const App: React.FC = () => {
               switch (activeTab) {
                 case 'dashboard': return <Dashboard clients={currentData.clients.filter(c => !c.isPaused)} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} activities={activities} notices={currentData.notices || []} />;
                 case 'knowledge-base': return <KnowledgeBase wiki={currentData.wiki || []} notices={currentData.notices || []} currentUser={currentUser} onUpdateWiki={items => updateCurrentMonthData({ wiki: items })} onUpdateNotices={notices => updateCurrentMonthData({ notices })} />;
-                case 'team': return <TeamView team={team} currentUser={currentUser} availableRoles={availableRoles} onUpdateRole={(id, r) => { const next = team.map(u => u.id === id ? { ...u, role: r } : u); setTeam(next); syncToCloud({ team: next, availableRoles, db }); }} onAddMember={(name, role, email) => { const next = [...team, { id: email.toLowerCase(), name, email: email.toLowerCase(), role, isActive: true }]; setTeam(next); syncToCloud({ team: next, availableRoles, db }); }} onRemoveMember={(id) => { if(id === CEO_DEFAULT.id) return; const next = team.filter(u => u.id !== id); setTeam(next); syncToCloud({ team: next, availableRoles, db }); }} onAddRole={(role) => { const next = [...availableRoles, role]; setAvailableRoles(next); syncToCloud({ team, availableRoles: next, db }); }} onToggleActive={(id) => { const next = team.map(u => u.id === id ? { ...u, isActive: !u.isActive } : u); setTeam(next); syncToCloud({ team: next, availableRoles, db }); }} />;
-                case 'commercial': return <SalesView goal={currentData.salesGoal} team={team} clients={currentData.clients} currentUser={currentUser} onUpdateGoal={u => updateCurrentMonthData({ salesGoal: { ...currentData.salesGoal, ...u } })} onRegisterSale={(uid, val, cname) => { setTeam(prev => prev.map(usr => usr.id === uid ? { ...usr, salesVolume: (usr.salesVolume || 0) + val } : usr)); const newClient: Client = { id: Date.now().toString(), name: cname, industry: 'Novo Contrato', health: 'Estável', progress: 0, managerId: '', salesId: uid, contractValue: val, statusFlag: 'GREEN', isPaused: false, folder: { briefing: '', accessLinks: '', operationalHistory: '' } }; updateCurrentMonthData({ salesGoal: { ...currentData.salesGoal, currentValue: currentData.salesGoal.currentValue + val, totalSales: currentData.salesGoal.totalSales + 1 }, clients: [...currentData.clients, newClient] }); }} onUpdateUserGoal={(id, pg, sg) => setTeam(prev => prev.map(u => u.id === id ? { ...u, personalGoal: pg, superGoal: sg } : u))} onUpdateClientNotes={(cid, n) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === cid ? { ...c, closingNotes: n } : c) })} />;
-                case 'checklists': return <ChecklistView tasks={currentData.tasks} currentUser={currentUser} onAddTask={t => updateCurrentMonthData({ tasks: [{ ...t, id: Date.now().toString() } as Task, ...currentData.tasks] })} onRemoveTask={id => updateCurrentMonthData({ tasks: currentData.tasks.filter(t => t.id !== id) })} />;
-                case 'my-workspace': return <ManagerWorkspace managerId={currentUser.id} clients={currentData.clients} tasks={currentData.tasks} currentUser={currentUser} drive={currentData.drive || []} onUpdateDrive={items => updateCurrentMonthData({ drive: items })} onToggleTask={id => updateCurrentMonthData({ tasks: currentData.tasks.map(t => t.id === id ? { ...t, status: t.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED' } : t) })} onUpdateNotes={(id, n) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, notes: n } : c) })} onUpdateStatusFlag={(id, f) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, statusFlag: f } : c) })} onUpdateFolder={(id, f) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === id ? { ...c, folder: { ...c.folder, ...f } } : c) })} />;
-                case 'clients': return <SquadsView clients={currentData.clients} currentUser={currentUser} onAssignManager={(cid, mid) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === cid ? { ...c, managerId: mid } : c) })} onRemoveClient={(cid) => updateCurrentMonthData({ clients: currentData.clients.filter(c => c.id !== cid) })} onTogglePauseClient={(cid) => updateCurrentMonthData({ clients: currentData.clients.map(c => c.id === cid ? { ...c, isPaused: !c.isPaused } : c) })} />;
+                case 'team': return <TeamView team={team} currentUser={currentUser} availableRoles={availableRoles} onUpdateRole={async (id, r) => { const user = team.find(u => u.id === id); if(user) await handleUpdateUser({ ...user, role: r }); }} onAddMember={async (name, role, email) => { await handleUpdateUser({ id: email.toLowerCase(), name, email: email.toLowerCase(), role, isActive: true }); }} onRemoveMember={async (id) => { if(id === CEO_DEFAULT.id) return; await dbService.deleteUser(id); }} onAddRole={async (role) => { const next = [...availableRoles, role]; setAvailableRoles(next); await dbService.saveGlobalState({ availableRoles: next }); }} onToggleActive={async (id) => { const user = team.find(u => u.id === id); if(user) await handleUpdateUser({ ...user, isActive: !user.isActive }); }} />;
+                case 'commercial': return (
+                  <SalesView 
+                    goal={currentData.salesGoal} 
+                    team={team} 
+                    clients={currentData.clients} 
+                    currentUser={currentUser} 
+                    onUpdateGoal={u => updateCurrentMonthData(prev => ({ salesGoal: { ...prev.salesGoal, ...u } }))} 
+                    onRegisterSale={async (uid, val, cname) => { 
+                      const seller = team.find(u => u.id === uid);
+                      if (seller) {
+                        await handleUpdateUser({ ...seller, salesVolume: (seller.salesVolume || 0) + val });
+                      }
+                      const newClient: Client = { 
+                        id: Date.now().toString(), 
+                        name: cname, 
+                        industry: 'Novo Contrato', 
+                        health: 'Estável', 
+                        progress: 0, 
+                        managerId: '', 
+                        salesId: uid, 
+                        contractValue: val, 
+                        statusFlag: 'GREEN', 
+                        isPaused: false, 
+                        folder: { briefing: '', accessLinks: '', operationalHistory: '' } 
+                      }; 
+                      await updateCurrentMonthData(prev => ({ 
+                        salesGoal: { 
+                          ...prev.salesGoal, 
+                          currentValue: prev.salesGoal.currentValue + val, 
+                          totalSales: prev.salesGoal.totalSales + 1 
+                        }, 
+                        clients: [...prev.clients, newClient] 
+                      })); 
+                    }} 
+                    onUpdateUserGoal={async (id, pg, sg) => {
+                      const user = team.find(u => u.id === id);
+                      if (user) await handleUpdateUser({ ...user, personalGoal: pg, superGoal: sg });
+                    }} 
+                    onUpdateClientNotes={(cid, n) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === cid ? { ...c, closingNotes: n } : c) }))} 
+                  />
+                );
+                case 'checklists': return <ChecklistView tasks={currentData.tasks} currentUser={currentUser} onAddTask={t => updateCurrentMonthData(prev => ({ tasks: [{ ...t, id: Date.now().toString() } as Task, ...prev.tasks] }))} onRemoveTask={id => updateCurrentMonthData(prev => ({ tasks: prev.tasks.filter(t => t.id !== id) }))} />;
+                case 'my-workspace': return <ManagerWorkspace managerId={currentUser.id} clients={currentData.clients} tasks={currentData.tasks} currentUser={currentUser} drive={currentData.drive || []} onUpdateDrive={items => updateCurrentMonthData({ drive: items })} onToggleTask={id => updateCurrentMonthData(prev => ({ tasks: prev.tasks.map(t => t.id === id ? { ...t, status: t.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED' } : t) }))} onUpdateNotes={(id, n) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === id ? { ...c, notes: n } : c) }))} onUpdateStatusFlag={(id, f) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === id ? { ...c, statusFlag: f } : c) }))} onUpdateFolder={(id, f) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === id ? { ...c, folder: { ...c.folder, ...f } } : c) }))} />;
+                case 'clients': return <SquadsView clients={currentData.clients} currentUser={currentUser} onAssignManager={(cid, mid) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === cid ? { ...c, managerId: mid } : c) }))} onRemoveClient={(cid) => updateCurrentMonthData(prev => ({ clients: prev.clients.filter(c => c.id !== cid) }))} onTogglePauseClient={(cid) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === cid ? { ...c, isPaused: !c.isPaused } : c) }))} />;
                 default: return <Dashboard clients={currentData.clients} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} />;
               }
             } catch (err) {

@@ -9,15 +9,22 @@ service cloud.firestore {
     }
     
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isAuthenticated() && 
+        (
+          request.auth.uid == userId || 
+          (request.auth.token.email != null && request.auth.token.email.lower() == userId.lower())
+        );
     }
 
     function isAdmin() {
       return isAuthenticated() && 
         (
-          request.auth.token.email == 'assessoriaomega1@gmail.com' ||
+          (request.auth.token.email == 'assessoriaomega1@gmail.com' && request.auth.token.email_verified == true) ||
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CEO')
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CEO') ||
+          (request.auth.token.email != null && 
+           exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) && 
+           get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.role == 'CEO')
         );
     }
 

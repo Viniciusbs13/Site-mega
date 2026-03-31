@@ -72,8 +72,7 @@ const Auth: React.FC<AuthProps> = ({ team, onLogin, onUpdateUser }) => {
           isActive: true 
         };
         // Save to Firestore immediately with correct structure
-        await dbService.saveState({ 
-          team: [ceo], 
+        await dbService.saveGlobalState({ 
           availableRoles: Object.values(DefaultUserRole), 
           db: { 
             [monthKey]: { 

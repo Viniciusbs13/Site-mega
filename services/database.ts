@@ -88,27 +88,46 @@ export const dbService = {
     }
   },
 
-  saveState: async (state: AppState): Promise<{ success: boolean; error?: string }> => {
+  saveGlobalState: async (data: any): Promise<{ success: boolean; error?: string }> => {
     try {
       await dbService.ensureAuth();
-      const { team, db: monthlyData, ...globalData } = state;
-      
-      // Save global state (availableRoles, etc)
-      await setDoc(doc(db, 'state', 'global'), globalData);
-      
-      // Save each month individually
-      for (const [monthKey, data] of Object.entries(monthlyData)) {
-        await setDoc(doc(db, 'months', monthKey), data);
-      }
-      
-      // Save users individually
-      for (const user of team) {
-        await setDoc(doc(db, 'users', user.id), user);
-      }
-      
+      await setDoc(doc(db, 'state', 'global'), data, { merge: true });
       return { success: true };
     } catch (e: any) {
-      console.error("Erro ao salvar no Firestore:", e.message);
+      console.error("Erro ao salvar estado global:", e.message);
+      return { success: false, error: e.message };
+    }
+  },
+
+  saveMonthData: async (monthKey: string, data: any): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await dbService.ensureAuth();
+      await setDoc(doc(db, 'months', monthKey), data, { merge: true });
+      return { success: true };
+    } catch (e: any) {
+      console.error(`Erro ao salvar mês ${monthKey}:`, e.message);
+      return { success: false, error: e.message };
+    }
+  },
+
+  saveUser: async (user: User): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await dbService.ensureAuth();
+      await setDoc(doc(db, 'users', user.id), user);
+      return { success: true };
+    } catch (e: any) {
+      console.error(`Erro ao salvar usuário ${user.id}:`, e.message);
+      return { success: false, error: e.message };
+    }
+  },
+
+  deleteUser: async (userId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await dbService.ensureAuth();
+      await deleteDoc(doc(db, 'users', userId));
+      return { success: true };
+    } catch (e: any) {
+      console.error(`Erro ao excluir usuário ${userId}:`, e.message);
       return { success: false, error: e.message };
     }
   },
@@ -120,15 +139,18 @@ export const dbService = {
       const teamSnapshot = await getDocs(collection(db, 'users'));
       const monthsSnapshot = await getDocs(collection(db, 'months'));
       
-      if (stateDoc.exists()) {
-        const globalData = stateDoc.data() as Omit<AppState, 'team' | 'db'>;
-        const team = teamSnapshot.docs.map(d => d.data() as User);
-        const dbObj: MonthlyData = {};
-        monthsSnapshot.docs.forEach(d => {
-          dbObj[d.id] = d.data() as MonthlyData[string];
-        });
-        return { ...globalData, team, db: dbObj } as AppState;
-      }
+      const globalData = stateDoc.exists() ? (stateDoc.data() as any) : {};
+      const team = teamSnapshot.docs.map(d => d.data() as User);
+      const dbObj: MonthlyData = {};
+      monthsSnapshot.docs.forEach(d => {
+        dbObj[d.id] = d.data() as MonthlyData[string];
+      });
+      
+      return { 
+        availableRoles: globalData.availableRoles || [],
+        team, 
+        db: dbObj 
+      } as AppState;
     } catch (e) {
       console.warn("Falha ao carregar Firestore:", e);
     }
@@ -136,38 +158,59 @@ export const dbService = {
   },
 
   subscribeToGlobalState: (callback: (data: any) => void) => {
-    let unsub = () => {};
+    let unsub: (() => void) | null = null;
+    let isCancelled = false;
+
     dbService.ensureAuth().then(() => {
+      if (isCancelled) return;
       unsub = onSnapshot(doc(db, 'state', 'global'), (snapshot) => {
         if (snapshot.exists()) {
           callback(snapshot.data());
         }
       }, (error) => handleFirestoreError(error, OperationType.GET, 'state/global'));
     });
-    return () => unsub();
+
+    return () => {
+      isCancelled = true;
+      if (unsub) unsub();
+    };
   },
 
   subscribeToMonth: (monthKey: string, callback: (data: MonthlyData[string]) => void) => {
-    let unsub = () => {};
+    let unsub: (() => void) | null = null;
+    let isCancelled = false;
+
     dbService.ensureAuth().then(() => {
+      if (isCancelled) return;
       unsub = onSnapshot(doc(db, 'months', monthKey), (snapshot) => {
         if (snapshot.exists()) {
           callback(snapshot.data() as MonthlyData[string]);
         }
       }, (error) => handleFirestoreError(error, OperationType.GET, `months/${monthKey}`));
     });
-    return () => unsub();
+
+    return () => {
+      isCancelled = true;
+      if (unsub) unsub();
+    };
   },
 
   subscribeToTeam: (callback: (users: User[]) => void) => {
-    let unsub = () => {};
+    let unsub: (() => void) | null = null;
+    let isCancelled = false;
+
     dbService.ensureAuth().then(() => {
+      if (isCancelled) return;
       unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
         const users = snapshot.docs.map(d => d.data() as User);
         callback(users);
       }, (error) => handleFirestoreError(error, OperationType.GET, 'users'));
     });
-    return () => unsub();
+
+    return () => {
+      isCancelled = true;
+      if (unsub) unsub();
+    };
   },
 
   updateUserPresence: async (userId: string) => {
