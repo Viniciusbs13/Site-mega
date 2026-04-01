@@ -47,26 +47,31 @@ const TeamView: React.FC<TeamViewProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 max-w-[1400px] mx-auto pb-24">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">Central de Comando</h2>
-          <p className="text-sm text-gray-400 font-medium">Gestão hierárquica e controle de acessos ativos.</p>
+    <div className="space-y-10 animate-in fade-in duration-700 max-w-[1400px] mx-auto pb-32 font-['General_Sans']">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div className="flex items-center gap-5">
+          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shadow-2xl backdrop-blur-xl">
+            <ShieldCheck className="w-6 h-6 text-[#14b8a6]" />
+          </div>
+          <div>
+            <h2 className="text-2xl md:text-4xl font-bold text-white tracking-tight italic uppercase leading-none text-gradient">Central de Comando</h2>
+            <p className="text-[10px] md:text-[11px] font-medium text-white/40 uppercase tracking-[0.3em] mt-2">Gestão hierárquica e controle de acessos ativos.</p>
+          </div>
         </div>
         
         {isCEO && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsAddingRole(true)}
-              className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black text-white uppercase hover:bg-white/10 transition-all flex items-center gap-2"
+              className="bg-white/5 border border-white/10 px-8 py-4 rounded-full text-[11px] font-bold text-white uppercase hover:bg-white/10 transition-all flex items-center gap-3 backdrop-blur-xl"
             >
-              <ShieldPlus className="w-4 h-4 text-purple-400" /> Nova Função
+              <ShieldPlus className="w-4.5 h-4.5 text-purple-400" /> NOVA FUNÇÃO
             </button>
             <button 
               onClick={() => setIsAddingMember(true)}
-              className="bg-[#14b8a6] px-6 py-3 rounded-2xl text-[10px] font-black text-black uppercase hover:scale-105 transition-all flex items-center gap-2 shadow-[0_10px_30px_rgba(20,184,166,0.3)]"
+              className="flex items-center justify-center gap-3 px-10 py-4 bg-white text-black rounded-full text-[11px] font-bold uppercase tracking-widest hover:bg-[#14b8a6] transition-all shadow-2xl"
             >
-              <UserPlus className="w-4 h-4" /> Admitir Colaborador
+              <UserPlus className="w-5 h-5" /> ADMITIR COLABORADOR
             </button>
           </div>
         )}
@@ -74,153 +79,169 @@ const TeamView: React.FC<TeamViewProps> = ({
 
       {/* MODAL ADICIONAR COLABORADOR */}
       {isAddingMember && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-in fade-in zoom-in duration-200">
-          <form onSubmit={handleAddMember} className="bg-[#111] border border-white/10 p-10 rounded-[48px] w-full max-w-md space-y-6 shadow-2xl relative">
-            <button type="button" onClick={() => setIsAddingMember(false)} className="absolute right-8 top-8 text-gray-500 hover:text-white p-2 bg-white/5 rounded-full"><X /></button>
-            
-            <div className="text-center">
-              <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">Novo Acesso Ω</h3>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">O link de acesso será válido após o cadastro</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-3xl p-8 animate-in fade-in zoom-in duration-500">
+          <form onSubmit={handleAddMember} className="w-full max-w-md glass-card p-12 space-y-10 border-white/10 shadow-[0_0_150px_rgba(0,0,0,0.8)]">
+            <div className="flex items-center justify-between">
+               <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-white italic uppercase tracking-tighter text-gradient">Novo Acesso Ω</h3>
+                  <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.3em]">O link de acesso será enviado por e-mail.</p>
+               </div>
+               <button type="button" onClick={() => setIsAddingMember(false)} className="p-3 text-white/20 hover:text-white bg-white/5 rounded-full transition-all">
+                 <X className="w-6 h-6" />
+               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Nome Completo</label>
+                <label className="text-[10px] font-bold text-white/20 uppercase tracking-widest ml-4">Nome Completo</label>
                 <div className="relative">
-                  <UserPlus className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                  <UserPlus className="absolute left-6 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-white/10" />
                   <input 
                     required 
-                    value={newName} 
-                    onChange={e => setNewName(e.target.value)} 
-                    className="w-full bg-black border border-white/5 rounded-2xl py-5 pl-14 pr-6 text-white text-sm outline-none focus:border-[#14b8a6] transition-all" 
-                    placeholder="Ex: Lucas Silva" 
+                    placeholder="Nome do colaborador"
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-full px-16 py-5 text-sm text-white outline-none focus:border-[#14b8a6] transition-all placeholder:text-white/10"
                   />
                 </div>
               </div>
-
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 text-teal-500">Email de Acesso (Login)</label>
+                <label className="text-[10px] font-bold text-white/20 uppercase tracking-widest ml-4">E-mail Corporativo</label>
                 <div className="relative">
-                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-600" />
+                  <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-white/10" />
                   <input 
                     required 
-                    type="email" 
-                    value={newEmail} 
-                    onChange={e => setNewEmail(e.target.value)} 
-                    className="w-full bg-black border border-teal-500/20 rounded-2xl py-5 pl-14 pr-6 text-white text-sm outline-none focus:border-teal-500 transition-all shadow-[0_0_20px_rgba(20,184,166,0.05)]" 
-                    placeholder="Ex: lucas@omega.com" 
+                    type="email"
+                    placeholder="email@exemplo.com"
+                    value={newEmail}
+                    onChange={e => setNewEmail(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-full px-16 py-5 text-sm text-white outline-none focus:border-[#14b8a6] transition-all placeholder:text-white/10"
                   />
                 </div>
-                <p className="text-[9px] text-gray-600 font-medium ml-2 italic">Este será o usuário que ele usará para logar.</p>
               </div>
-
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Função Estratégica</label>
+                <label className="text-[10px] font-bold text-white/20 uppercase tracking-widest ml-4">Função Estratégica</label>
                 <div className="relative">
-                  <ShieldCheck className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                  <ShieldCheck className="absolute left-6 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-white/10" />
                   <select 
-                    value={newRole} 
-                    onChange={e => setNewRole(e.target.value)} 
-                    className="w-full bg-black border border-white/5 rounded-2xl py-5 pl-14 pr-6 text-white text-sm outline-none appearance-none cursor-pointer"
+                    value={newRole}
+                    onChange={e => setNewRole(e.target.value as UserRole)}
+                    className="w-full bg-white/5 border border-white/10 rounded-full px-16 py-5 text-sm text-white outline-none focus:border-[#14b8a6] transition-all appearance-none cursor-pointer"
                   >
-                    {availableRoles.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
+                    {availableRoles.map(r => <option key={r} value={r} className="bg-[#0a0a0a]">{r.replace('_', ' ')}</option>)}
                   </select>
                 </div>
               </div>
+              <button 
+                type="submit"
+                className="w-full py-6 bg-white text-black font-bold uppercase text-sm rounded-full tracking-widest hover:bg-[#14b8a6] transition-all shadow-2xl mt-4"
+              >
+                LIBERAR ACESSO NO SISTEMA
+              </button>
             </div>
-
-            <button type="submit" className="w-full bg-[#14b8a6] text-black py-5 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-teal-500/20">
-              LIBERAR ACESSO NO SISTEMA
-            </button>
           </form>
         </div>
       )}
 
       {/* MODAL NOVA FUNÇÃO */}
       {isAddingRole && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4">
-          <form onSubmit={handleAddRole} className="bg-[#111] border border-white/10 p-10 rounded-[48px] w-full max-w-md space-y-6 shadow-2xl relative">
-            <button type="button" onClick={() => setIsAddingRole(false)} className="absolute right-8 top-8 text-gray-500 hover:text-white p-2 bg-white/5 rounded-full"><X /></button>
-            <h3 className="text-2xl font-black text-white uppercase italic">Criar Nível de Acesso</h3>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-gray-500 uppercase">Nome da Função</label>
-                <input required value={newRoleName} onChange={e => setNewRoleName(e.target.value)} className="w-full bg-black border border-white/10 rounded-2xl px-6 py-5 text-white outline-none focus:border-purple-500" placeholder="Ex: Designer Sênior" />
-              </div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-3xl p-8 animate-in fade-in zoom-in duration-500">
+          <form onSubmit={handleAddRole} className="w-full max-w-md glass-card p-12 space-y-10 border-white/10 shadow-[0_0_150px_rgba(0,0,0,0.8)]">
+            <div className="flex items-center justify-between">
+               <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-white italic uppercase tracking-tighter text-gradient">Nova Função</h3>
+                  <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.3em]">Defina um novo nível operacional na hierarquia.</p>
+               </div>
+               <button type="button" onClick={() => setIsAddingRole(false)} className="p-3 text-white/20 hover:text-white bg-white/5 rounded-full transition-all">
+                 <X className="w-6 h-6" />
+               </button>
             </div>
-            <button type="submit" className="w-full bg-purple-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] transition-all">ESTABELECER FUNÇÃO</button>
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-white/20 uppercase tracking-widest ml-4">Nome da Função</label>
+                <div className="relative">
+                  <ShieldCheck className="absolute left-6 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-white/10" />
+                  <input 
+                    required 
+                    placeholder="Ex: Gerente de Projetos"
+                    value={newRoleName}
+                    onChange={e => setNewRoleName(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-full px-16 py-5 text-sm text-white outline-none focus:border-[#14b8a6] transition-all placeholder:text-white/10"
+                  />
+                </div>
+              </div>
+              <button 
+                type="submit"
+                className="w-full py-6 bg-white text-black font-bold uppercase text-sm rounded-full tracking-widest hover:bg-[#14b8a6] transition-all shadow-2xl mt-4"
+              >
+                CRIAR NÍVEL ESTRATÉGICO
+              </button>
+            </div>
           </form>
         </div>
       )}
 
       {/* LISTA DE EQUIPE */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {team.map((member) => (
-          <div key={member.id} className={`bg-[#111] border rounded-[40px] p-8 transition-all group relative overflow-hidden flex flex-col ${!member.isActive ? 'opacity-40 grayscale' : 'border-white/5 hover:border-[#14b8a6]/20'}`}>
-            <div className="flex items-start justify-between mb-8">
-              <div className="flex items-center gap-4">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${member.isActive ? 'bg-teal-500/10 border-teal-500/20 text-teal-400 shadow-[0_0_20px_rgba(20,184,166,0.1)]' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-                  <span className="text-xl font-black">{member.name[0]}</span>
-                </div>
-                <div>
-                  <h4 className="text-white font-bold text-lg uppercase tracking-tighter italic leading-none">{member.name}</h4>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <AtSign className="w-3 h-3 text-teal-500/50" />
-                    <span className="text-[10px] text-gray-400 font-bold lowercase truncate max-w-[150px]">{member.email}</span>
-                  </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className={`text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full ${member.isActive ? 'bg-teal-500/10 text-teal-500' : 'bg-red-500/10 text-red-500'}`}>
-                      {member.isActive ? 'Ativo' : 'Suspenso'}
-                    </span>
-                    {member.isActive && member.lastActive && (new Date().getTime() - new Date(member.lastActive).getTime() < 120000) && (
-                      <span className="flex items-center gap-1 text-[8px] font-black tracking-widest uppercase text-green-500 animate-pulse">
-                        <span className="w-1 h-1 bg-green-500 rounded-full"></span> Online
-                      </span>
-                    )}
-                  </div>
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        {team.map(member => (
+          <div key={member.id} className={`glass-card p-10 space-y-8 relative group overflow-hidden border-white/10 hover:border-[#14b8a6]/20 transition-all ${!member.isActive ? 'opacity-40 grayscale' : ''}`}>
+            <div className="flex items-start justify-between">
+              <div className={`w-20 h-20 rounded-3xl border flex items-center justify-center text-3xl font-bold italic shadow-2xl backdrop-blur-xl group-hover:scale-110 transition-transform duration-500 ${member.isActive ? 'bg-[#14b8a6]/10 border-[#14b8a6]/20 text-[#14b8a6]' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
+                {member.name[0]}
               </div>
-              
-              {isCEO && member.role !== DefaultUserRole.CEO && (
-                <div className="flex gap-2">
-                   <button 
-                    onClick={() => onToggleActive(member.id)}
-                    className={`p-3 rounded-xl transition-all ${member.isActive ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'}`}
-                    title={member.isActive ? "Suspender Acesso" : "Reativar Acesso"}
-                  >
-                    {member.isActive ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
-                  </button>
-                  <button 
-                    onClick={() => { if(confirm(`Excluir permanentemente ${member.name}?`)) onRemoveMember(member.id); }}
-                    className="p-3 bg-white/5 text-gray-600 hover:text-white hover:bg-red-600 rounded-xl transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-2 mb-1">
-                  <ShieldCheck className="w-3 h-3" /> Nível Operacional
-                </label>
-                {isCEO ? (
-                  <select 
-                    value={member.role}
-                    onChange={(e) => onUpdateRole(member.id, e.target.value)}
-                    className="w-full bg-black border border-white/5 rounded-2xl px-4 py-4 text-xs font-bold text-teal-400 outline-none focus:border-teal-500 transition-all cursor-pointer shadow-inner"
-                  >
-                    {availableRoles.map(role => (
-                      <option key={role} value={role}>{role.replace('_', ' ')}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="w-full bg-black/40 border border-white/5 rounded-2xl px-4 py-4 text-xs font-bold text-gray-500 uppercase italic">
-                    {member.role.replace('_', ' ')}
+              <div className="flex flex-col items-end gap-3">
+                <span className={`text-[9px] font-bold px-4 py-1.5 rounded-full uppercase tracking-widest border ${member.role === DefaultUserRole.CEO ? 'bg-[#14b8a6]/10 text-[#14b8a6] border-[#14b8a6]/20' : 'bg-white/5 text-white/40 border-white/10'}`}>
+                  {member.role.replace('_', ' ')}
+                </span>
+                {isCEO && member.role !== DefaultUserRole.CEO && (
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      onClick={() => onToggleActive(member.id)}
+                      className={`p-3 rounded-xl transition-all ${member.isActive ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'}`}
+                    >
+                      {member.isActive ? <PowerOff className="w-4.5 h-4.5" /> : <Power className="w-4.5 h-4.5" />}
+                    </button>
+                    <button onClick={() => { if(confirm(`Excluir permanentemente ${member.name}?`)) onRemoveMember(member.id); }} className="p-3 text-white/10 hover:text-red-500 transition-all bg-white/5 hover:bg-red-500/10 rounded-xl border border-transparent hover:border-red-500/20">
+                      <Trash2 className="w-4.5 h-4.5" />
+                    </button>
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <h3 className="text-2xl font-bold text-white uppercase italic tracking-tighter text-gradient leading-none">{member.name}</h3>
+                {member.isActive && member.lastActive && (new Date().getTime() - new Date(member.lastActive).getTime() < 120000) && (
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></span>
+                )}
+              </div>
+              <p className="text-[11px] text-white/30 font-medium tracking-tight break-all">{member.email}</p>
+            </div>
+
+            <div className="pt-8 border-t border-white/5 space-y-4">
+               <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-white/20 font-bold uppercase tracking-[0.2em]">Nível Operacional</span>
+                    {isCEO && member.role !== DefaultUserRole.CEO ? (
+                      <select 
+                        value={member.role}
+                        onChange={(e) => onUpdateRole(member.id, e.target.value as UserRole)}
+                        className="bg-transparent text-xs font-bold text-[#14b8a6] uppercase mt-1 italic outline-none cursor-pointer hover:text-white transition-colors"
+                      >
+                        {availableRoles.map(role => (
+                          <option key={role} value={role} className="bg-[#0a0a0a]">{role.replace('_', ' ')}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="text-xs font-bold text-white/60 uppercase mt-1 italic">{member.role.replace('_', ' ')}</span>
+                    )}
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                    <ShieldCheck className="w-5 h-5 text-white/20" />
+                  </div>
+               </div>
             </div>
           </div>
         ))}

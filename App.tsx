@@ -301,8 +301,20 @@ const App: React.FC = () => {
   const currentData = (db && db[selectedMonth]) ? db[selectedMonth] : DEFAULT_MONTH_DATA();
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-[#0a0a0a] text-gray-300 overflow-hidden relative">
-      <div className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-[#0a0a0a] z-50">
+    <div className="flex flex-col md:flex-row h-screen bg-black text-white overflow-hidden relative font-['General_Sans']">
+      {/* Video Background */}
+      <video 
+        className="video-bg" 
+        autoPlay 
+        muted 
+        loop 
+        playsInline
+      >
+        <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260217_030345_246c0224-10a4-422c-b324-070b7c0eceda.mp4" type="video/mp4" />
+      </video>
+      <div className="video-overlay" />
+
+      <div className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-black/50 backdrop-blur-md z-50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#14b8a6] rounded-lg flex items-center justify-center text-black font-black italic">Ω</div>
           <span className="text-sm font-black uppercase tracking-widest text-white italic">Omega</span>
@@ -330,7 +342,25 @@ const App: React.FC = () => {
               switch (activeTab) {
                 case 'dashboard': return <Dashboard clients={currentData.clients.filter(c => !c.isPaused)} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} activities={activities} notices={currentData.notices || []} />;
                 case 'knowledge-base': return <KnowledgeBase wiki={currentData.wiki || []} notices={currentData.notices || []} currentUser={currentUser} onUpdateWiki={items => updateCurrentMonthData({ wiki: items })} onUpdateNotices={notices => updateCurrentMonthData({ notices })} />;
-                case 'team': return <TeamView team={team} currentUser={currentUser} availableRoles={availableRoles} onUpdateRole={async (id, r) => { const user = team.find(u => u.id === id); if(user) await handleUpdateUser({ ...user, role: r }); }} onAddMember={async (name, role, email) => { await handleUpdateUser({ id: email.toLowerCase(), name, email: email.toLowerCase(), role, isActive: true }); }} onRemoveMember={async (id) => { if(id === CEO_DEFAULT.id) return; await dbService.deleteUser(id); }} onAddRole={async (role) => { const next = [...availableRoles, role]; setAvailableRoles(next); await dbService.saveGlobalState({ availableRoles: next }); }} onToggleActive={async (id) => { const user = team.find(u => u.id === id); if(user) await handleUpdateUser({ ...user, isActive: !user.isActive }); }} />;
+                case 'team': return <TeamView team={team} currentUser={currentUser} availableRoles={availableRoles} onUpdateRole={async (id, r) => { const user = team.find(u => u.id === id); if(user) await handleUpdateUser({ ...user, role: r }); }} onAddMember={async (name, role, email) => { 
+                  await handleUpdateUser({ id: email.toLowerCase(), name, email: email.toLowerCase(), role, isActive: true }); 
+                  // Send invite email
+                  try {
+                    const response = await fetch('/api/send-invite', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email: email.toLowerCase(), name, role })
+                    });
+                    if (!response.ok) {
+                      const errorData = await response.json();
+                      console.error('Falha ao enviar convite:', errorData.error);
+                    } else {
+                      console.log('Convite enviado com sucesso para:', email);
+                    }
+                  } catch (err) {
+                    console.error('Erro ao chamar API de convite:', err);
+                  }
+                }} onRemoveMember={async (id) => { if(id === CEO_DEFAULT.id) return; await dbService.deleteUser(id); }} onAddRole={async (role) => { const next = [...availableRoles, role]; setAvailableRoles(next); await dbService.saveGlobalState({ availableRoles: next }); }} onToggleActive={async (id) => { const user = team.find(u => u.id === id); if(user) await handleUpdateUser({ ...user, isActive: !user.isActive }); }} />;
                 case 'commercial': return (
                   <SalesView 
                     goal={currentData.salesGoal} 

@@ -49,8 +49,8 @@ const Dashboard: React.FC<DashboardProps> = ({ clients, tasks, currentUser, curr
         </div>
       </header>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4 md:gap-6">
-        <div className="xl:col-span-3 space-y-4 md:space-y-6">
+      <div className="grid grid-cols-1 gap-4 md:gap-6">
+        <div className="space-y-4 md:space-y-6">
           <div className="bg-[#111] border border-white/5 rounded-[32px] p-6 md:p-12 relative overflow-hidden group flex flex-col justify-center min-h-[280px] md:min-h-[400px]">
             <div className="absolute right-[-20px] bottom-[-20px] opacity-[0.03] pointer-events-none group-hover:opacity-[0.05] transition-opacity">
               <span className="text-[200px] md:text-[350px] font-black leading-none select-none">Ω</span>
@@ -88,10 +88,25 @@ const Dashboard: React.FC<DashboardProps> = ({ clients, tasks, currentUser, curr
               <span className="text-[150px] font-black italic">Ω</span>
             </div>
             <div className="relative z-10">
-              <p className="text-sm font-bold mb-2 italic uppercase">{currentMonth}</p>
-              <h3 className="text-2xl md:text-4xl font-black leading-tight tracking-tighter mb-6 md:mb-8 uppercase italic">
+              <div className="flex justify-between items-start mb-2">
+                <p className="text-sm font-bold italic uppercase">{currentMonth}</p>
+                <div className="text-right">
+                  <p className="text-[10px] font-black uppercase tracking-tighter leading-none opacity-70">
+                    {new Date().toLocaleDateString('pt-BR', { weekday: 'long' })}
+                  </p>
+                  <p className="text-[12px] font-black uppercase tracking-tighter">
+                    {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+              <h3 className="text-2xl md:text-4xl font-black leading-tight tracking-tighter mb-4 md:mb-6 uppercase italic">
                 Foco na <br className="hidden md:block"/> Operação.
               </h3>
+              <div className="mb-6">
+                <p className="text-lg md:text-2xl font-black uppercase italic tracking-tighter text-black/90">
+                  "sangue no olho"
+                </p>
+              </div>
             </div>
             <div className="p-3 bg-black/10 rounded-xl">
                <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Status de Rede</p>
