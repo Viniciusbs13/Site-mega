@@ -301,20 +301,8 @@ const App: React.FC = () => {
   const currentData = (db && db[selectedMonth]) ? db[selectedMonth] : DEFAULT_MONTH_DATA();
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-black text-white overflow-hidden relative font-['General_Sans']">
-      {/* Video Background */}
-      <video 
-        className="video-bg" 
-        autoPlay 
-        muted 
-        loop 
-        playsInline
-      >
-        <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260217_030345_246c0224-10a4-422c-b324-070b7c0eceda.mp4" type="video/mp4" />
-      </video>
-      <div className="video-overlay" />
-
-      <div className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-black/50 backdrop-blur-md z-50">
+    <div className="flex flex-col md:flex-row h-screen bg-[#0a0a0a] text-gray-300 overflow-hidden relative">
+      <div className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-[#0a0a0a] z-50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#14b8a6] rounded-lg flex items-center justify-center text-black font-black italic">Ω</div>
           <span className="text-sm font-black uppercase tracking-widest text-white italic">Omega</span>
