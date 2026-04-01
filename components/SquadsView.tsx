@@ -6,15 +6,18 @@ import { Briefcase, TrendingUp, Pause, Play, Trash2, ShieldAlert } from 'lucide-
 
 interface SquadsViewProps {
   clients: Client[];
+  team: User[];
   currentUser: User;
   onAssignManager: (clientId: string, managerId: string) => void;
   onRemoveClient: (clientId: string) => void;
   onTogglePauseClient: (clientId: string) => void;
 }
 
-const SquadsView: React.FC<SquadsViewProps> = ({ clients, currentUser, onAssignManager, onRemoveClient, onTogglePauseClient }) => {
+const SquadsView: React.FC<SquadsViewProps> = ({ clients, team, currentUser, onAssignManager, onRemoveClient, onTogglePauseClient }) => {
   const [view, setView] = useState<'ACTIVE' | 'PAUSED'>('ACTIVE');
   const isCEO = currentUser.role === DefaultUserRole.CEO;
+
+  const managers = team.filter(u => u.role === DefaultUserRole.MANAGER || u.role === DefaultUserRole.SOCIAL_MEDIA || u.role === DefaultUserRole.EDITOR || u.role === DefaultUserRole.CAPTADOR);
 
   const filteredClients = clients.filter(c => view === 'ACTIVE' ? !c.isPaused : c.isPaused);
 
@@ -52,7 +55,7 @@ const SquadsView: React.FC<SquadsViewProps> = ({ clients, currentUser, onAssignM
                 {client.isPaused && <span className="bg-amber-500/10 text-amber-500 text-[8px] px-2 py-0.5 rounded font-black uppercase">Trabalho Congelado</span>}
               </div>
               <div className="flex items-center gap-6 text-[10px] text-gray-500 font-bold uppercase tracking-widest">
-                <span className="flex items-center gap-2 text-teal-500"><TrendingUp className="w-3 h-3"/> R$ {client.contractValue.toLocaleString()}</span>
+                {isCEO && <span className="flex items-center gap-2 text-teal-500"><TrendingUp className="w-3 h-3"/> R$ {client.contractValue.toLocaleString()}</span>}
                 <span className="flex items-center gap-2"><Briefcase className="w-3 h-3"/> {client.industry}</span>
                 <span>Progresso: {client.progress}%</span>
               </div>
@@ -68,7 +71,7 @@ const SquadsView: React.FC<SquadsViewProps> = ({ clients, currentUser, onAssignM
                   className="bg-black border border-white/10 rounded-xl px-4 py-3 text-xs font-black text-[#14b8a6] outline-none focus:border-teal-500 transition-all w-52 disabled:opacity-50"
                 >
                   <option value="">Sem Gestor</option>
-                  {MANAGERS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               </div>
 

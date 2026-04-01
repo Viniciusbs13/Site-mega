@@ -74,5 +74,10 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidActivity(request.resource.data);
     }
+
+    match /celebrations/latest {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
   }
 }

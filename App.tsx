@@ -12,7 +12,7 @@ import SalesView from './components/SalesView';
 import Auth from './components/Auth';
 import KnowledgeBase from './components/KnowledgeBase';
 import { dbService } from './services/database';
-import { Loader2, Menu, AlertTriangle } from 'lucide-react';
+import { Loader2, Menu, AlertTriangle, Bell } from 'lucide-react';
 
 const App: React.FC = () => {
   const currentYear = new Date().getFullYear();
@@ -64,8 +64,36 @@ const App: React.FC = () => {
   const [team, setTeam] = useState<User[]>([CEO_DEFAULT]);
   const [db, setDb] = useState<MonthlyData>({ [monthKey]: DEFAULT_MONTH_DATA() });
   const [activities, setActivities] = useState<any[]>([]);
+  const [celebration, setCelebration] = useState<{ name: string; value: number; id: string } | null>(null);
 
   const skipSyncRef = useRef(false);
+  const lastCelebrationId = useRef<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
+  }, []);
+
+  useEffect(() => {
+    const unsub = dbService.subscribeToCelebrations((data) => {
+      if (data && data.id !== lastCelebrationId.current) {
+        // Only trigger if it's a new celebration (timestamp within last 30 seconds to avoid old ones on load)
+        const isRecent = (Date.now() - parseInt(data.id)) < 30000;
+        if (isRecent) {
+          lastCelebrationId.current = data.id;
+          setCelebration(data);
+          if (audioRef.current) {
+            audioRef.current.currentTime = 0;
+            audioRef.current.play().catch(e => console.warn("Audio playback blocked by browser:", e));
+          }
+          setTimeout(() => setCelebration(null), 8000);
+        } else {
+          lastCelebrationId.current = data.id; // Mark as seen even if old
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const normalizeDb = (rawDb: any): MonthlyData => {
     if (!rawDb || typeof rawDb !== 'object') return { [monthKey]: DEFAULT_MONTH_DATA() };
@@ -228,8 +256,12 @@ const App: React.FC = () => {
   useEffect(() => {
     const initApp = async () => {
       setIsLoading(true);
-      await dbService.ensureAuth();
-      await loadEverything();
+      try {
+        await dbService.ensureAuth();
+        await loadEverything();
+      } catch (e) {
+        console.error("Erro na inicialização do app:", e);
+      }
       setIsLoading(false);
     };
     initApp();
@@ -302,6 +334,20 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#0a0a0a] text-gray-300 overflow-hidden relative">
+      {celebration && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-2xl animate-in fade-in zoom-in duration-300">
+          <div className="text-center space-y-8 p-12 bg-white/[0.02] rounded-[64px] border border-white/5 max-w-2xl mx-4">
+            <Bell className="w-48 h-48 md:w-64 md:h-64 text-amber-400 animate-bell mx-auto drop-shadow-[0_0_80px_rgba(251,191,36,0.7)]" />
+            <div className="space-y-2">
+              <h2 className="text-4xl md:text-7xl font-black text-white uppercase tracking-tighter italic">META SENDO ESMAGADA!</h2>
+              <p className="text-2xl md:text-4xl font-bold text-[#14b8a6] uppercase">{celebration.name}</p>
+              <p className="text-4xl md:text-6xl font-black text-white">R$ {celebration.value.toLocaleString()}</p>
+            </div>
+            <button onClick={() => setCelebration(null)} className="px-12 py-4 md:px-16 md:py-6 bg-white text-black font-black rounded-full hover:scale-110 transition-transform uppercase tracking-widest text-sm md:text-lg">Continuar o Grind</button>
+          </div>
+        </div>
+      )}
+
       <div className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-[#0a0a0a] z-50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#14b8a6] rounded-lg flex items-center justify-center text-black font-black italic">Ω</div>
@@ -328,7 +374,7 @@ const App: React.FC = () => {
           {(() => {
             try {
               switch (activeTab) {
-                case 'dashboard': return <Dashboard clients={currentData.clients.filter(c => !c.isPaused)} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} activities={activities} notices={currentData.notices || []} />;
+                case 'dashboard': return <Dashboard clients={currentData.clients.filter(c => !c.isPaused)} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} activities={activities} notices={currentData.notices || []} salesGoal={currentData.salesGoal} />;
                 case 'knowledge-base': return <KnowledgeBase wiki={currentData.wiki || []} notices={currentData.notices || []} currentUser={currentUser} onUpdateWiki={items => updateCurrentMonthData({ wiki: items })} onUpdateNotices={notices => updateCurrentMonthData({ notices })} />;
                 case 'team': return <TeamView team={team} currentUser={currentUser} availableRoles={availableRoles} onUpdateRole={async (id, r) => { const user = team.find(u => u.id === id); if(user) await handleUpdateUser({ ...user, role: r }); }} onAddMember={async (name, role, email) => { 
                   await handleUpdateUser({ id: email.toLowerCase(), name, email: email.toLowerCase(), role, isActive: true }); 
@@ -392,8 +438,8 @@ const App: React.FC = () => {
                 );
                 case 'checklists': return <ChecklistView tasks={currentData.tasks} currentUser={currentUser} onAddTask={t => updateCurrentMonthData(prev => ({ tasks: [{ ...t, id: Date.now().toString() } as Task, ...prev.tasks] }))} onRemoveTask={id => updateCurrentMonthData(prev => ({ tasks: prev.tasks.filter(t => t.id !== id) }))} />;
                 case 'my-workspace': return <ManagerWorkspace managerId={currentUser.id} clients={currentData.clients} tasks={currentData.tasks} currentUser={currentUser} drive={currentData.drive || []} onUpdateDrive={items => updateCurrentMonthData({ drive: items })} onToggleTask={id => updateCurrentMonthData(prev => ({ tasks: prev.tasks.map(t => t.id === id ? { ...t, status: t.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED' } : t) }))} onUpdateNotes={(id, n) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === id ? { ...c, notes: n } : c) }))} onUpdateStatusFlag={(id, f) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === id ? { ...c, statusFlag: f } : c) }))} onUpdateFolder={(id, f) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === id ? { ...c, folder: { ...c.folder, ...f } } : c) }))} />;
-                case 'clients': return <SquadsView clients={currentData.clients} currentUser={currentUser} onAssignManager={(cid, mid) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === cid ? { ...c, managerId: mid } : c) }))} onRemoveClient={(cid) => updateCurrentMonthData(prev => ({ clients: prev.clients.filter(c => c.id !== cid) }))} onTogglePauseClient={(cid) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === cid ? { ...c, isPaused: !c.isPaused } : c) }))} />;
-                default: return <Dashboard clients={currentData.clients} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} />;
+                case 'clients': return <SquadsView clients={currentData.clients} team={team} currentUser={currentUser} onAssignManager={(cid, mid) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === cid ? { ...c, managerId: mid } : c) }))} onRemoveClient={(cid) => updateCurrentMonthData(prev => ({ clients: prev.clients.filter(c => c.id !== cid) }))} onTogglePauseClient={(cid) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === cid ? { ...c, isPaused: !c.isPaused } : c) }))} />;
+                default: return <Dashboard clients={currentData.clients} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} salesGoal={currentData.salesGoal} />;
               }
             } catch (err) {
               return <div className="p-12 text-center text-red-500 font-black flex flex-col items-center gap-4"><AlertTriangle className="w-12 h-12" /><p>Erro ao carregar módulo.</p></div>;

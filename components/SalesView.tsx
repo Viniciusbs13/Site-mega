@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 // Import DefaultUserRole for enum value access
 import { SalesGoal, User, DefaultUserRole, Client } from '../types';
 import { Target, TrendingUp, Trophy, Bell, Plus, Edit2, DollarSign, Link, Clipboard, StickyNote, CheckCircle2, UserCheck, Info } from 'lucide-react';
+import { dbService } from '../services/database';
 
 interface SalesViewProps {
   goal: SalesGoal;
@@ -18,7 +19,6 @@ interface SalesViewProps {
 const SalesView: React.FC<SalesViewProps> = ({ 
   goal, team, clients, currentUser, onUpdateGoal, onRegisterSale, onUpdateUserGoal, onUpdateClientNotes 
 }) => {
-  const [celebration, setCelebration] = useState<{ name: string; value: number } | null>(null);
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [saleValue, setSaleValue] = useState<string>('');
   const [newClientName, setNewClientName] = useState('');
@@ -36,11 +36,10 @@ const SalesView: React.FC<SalesViewProps> = ({
     const val = parseFloat(saleValue);
     if (isNaN(val) || val <= 0 || !newClientName) return;
     
-    setCelebration({ name: currentUser.name, value: val });
     onRegisterSale(currentUser.id, val, newClientName);
+    dbService.triggerCelebration(currentUser.name, val);
     setSaleValue('');
     setNewClientName('');
-    setTimeout(() => setCelebration(null), 5000);
   };
 
   const copyToClipboard = () => {
@@ -62,20 +61,6 @@ const SalesView: React.FC<SalesViewProps> = ({
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-[1400px] mx-auto pb-20">
       
-      {celebration && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-2xl animate-in fade-in zoom-in duration-300">
-          <div className="text-center space-y-8 p-12 bg-white/[0.02] rounded-[64px] border border-white/5">
-            <Bell className="w-64 h-64 text-amber-400 animate-bell mx-auto drop-shadow-[0_0_80px_rgba(251,191,36,0.7)]" />
-            <div className="space-y-2">
-              <h2 className="text-7xl font-black text-white uppercase tracking-tighter italic">META SENDO ESMAGADA!</h2>
-              <p className="text-4xl font-bold text-[#14b8a6] uppercase">{celebration.name}</p>
-              <p className="text-6xl font-black text-white">R$ {celebration.value.toLocaleString()}</p>
-            </div>
-            <button onClick={() => setCelebration(null)} className="px-16 py-6 bg-white text-black font-black rounded-full hover:scale-110 transition-transform uppercase tracking-widest text-lg">Continuar o Grind</button>
-          </div>
-        </div>
-      )}
-
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Target className="w-6 h-6 text-[#14b8a6]" />

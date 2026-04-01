@@ -273,5 +273,41 @@ export const dbService = {
     } catch (e) {
       return null;
     }
+  },
+
+  triggerCelebration: async (name: string, value: number) => {
+    try {
+      await dbService.ensureAuth();
+      const id = Date.now().toString();
+      await setDoc(doc(db, 'celebrations', 'latest'), {
+        id,
+        name,
+        value,
+        timestamp: new Date().toISOString()
+      });
+    } catch (e) {
+      console.error("Erro ao disparar celebração:", e);
+    }
+  },
+
+  subscribeToCelebrations: (callback: (data: { name: string; value: number; id: string } | null) => void) => {
+    let unsub: (() => void) | null = null;
+    let isCancelled = false;
+
+    dbService.ensureAuth().then(() => {
+      if (isCancelled) return;
+      unsub = onSnapshot(doc(db, 'celebrations', 'latest'), (snapshot) => {
+        if (snapshot.exists()) {
+          callback(snapshot.data() as any);
+        } else {
+          callback(null);
+        }
+      }, (error) => handleFirestoreError(error, OperationType.GET, 'celebrations/latest'));
+    });
+
+    return () => {
+      isCancelled = true;
+      if (unsub) unsub();
+    };
   }
 };
