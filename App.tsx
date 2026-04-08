@@ -406,7 +406,7 @@ const App: React.FC = () => {
                     clients={currentData.clients} 
                     currentUser={currentUser} 
                     onUpdateGoal={u => updateCurrentMonthData(prev => ({ salesGoal: { ...prev.salesGoal, ...u } }))} 
-                    onRegisterSale={async (uid, val, cname, pname, services) => { 
+                    onRegisterSale={async (uid, val, cname, pname, services, vQty) => { 
                       const seller = team.find(u => u.id === uid);
                       if (seller) {
                         await handleUpdateUser({ ...seller, salesVolume: (seller.salesVolume || 0) + val });
@@ -424,6 +424,7 @@ const App: React.FC = () => {
                         isPaused: false, 
                         planName: pname,
                         services: services,
+                        videoQuantity: vQty,
                         onboardingDate: new Date().toISOString(),
                         folder: { briefing: '', accessLinks: '', operationalHistory: '' } 
                       }; 

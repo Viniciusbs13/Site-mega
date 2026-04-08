@@ -68,6 +68,7 @@ export interface Client {
   isPaused?: boolean;
   planName?: string;
   services?: string[]; // e.g. ['META_ADS', 'EDICAO', 'CAPTACAO']
+  videoQuantity?: number;
   onboardingDate?: string;
 }
 

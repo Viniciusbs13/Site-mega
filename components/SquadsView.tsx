@@ -61,6 +61,20 @@ const SquadsView: React.FC<SquadsViewProps> = ({ clients, team, currentUser, onA
         </div>
       </header>
 
+      {isCEO && clients.some(c => !c.managerId && !c.isPaused) && (
+        <div className="bg-teal-500/5 border border-teal-500/20 rounded-[32px] p-6 flex items-center justify-between animate-pulse">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center text-black">
+              <UserPlus className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-black text-white uppercase italic">Novos Clientes Aguardando Squad</p>
+              <p className="text-[10px] text-teal-500 font-bold uppercase tracking-widest">Existem {clients.filter(c => !c.managerId && !c.isPaused).length} contratos sem gestor definido.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-6">
         {filteredClients.map(client => (
           <div key={client.id} className={`bg-[#111] border rounded-[40px] p-8 flex flex-col md:flex-row md:items-center justify-between gap-8 group transition-all ${client.isPaused ? 'border-amber-500/20 grayscale opacity-70' : 'border-white/5 hover:border-teal-500/20 shadow-2xl shadow-black/40'}`}>
@@ -77,6 +91,9 @@ const SquadsView: React.FC<SquadsViewProps> = ({ clients, team, currentUser, onA
               <div className="flex flex-wrap items-center gap-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">
                 {isCEO && <span className="flex items-center gap-2 text-teal-500"><TrendingUp className="w-3 h-3"/> R$ {client.contractValue.toLocaleString()}</span>}
                 <span className="flex items-center gap-2"><Briefcase className="w-3 h-3"/> {client.industry}</span>
+                {client.videoQuantity !== undefined && client.videoQuantity > 0 && (
+                  <span className="flex items-center gap-2 text-blue-400"><Video className="w-3 h-3"/> {client.videoQuantity} Vídeos</span>
+                )}
                 <span>Progresso: {client.progress}%</span>
                 
                 <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
@@ -99,6 +116,12 @@ const SquadsView: React.FC<SquadsViewProps> = ({ clients, team, currentUser, onA
                 ) : (
                   <span className="flex items-center gap-1 text-blue-400 bg-blue-400/10 px-2 py-1 rounded text-[8px] font-black">
                     <UserPlus className="w-2 h-2" /> REQUER ACCOUNT
+                  </span>
+                )}
+
+                {!client.managerId && (
+                  <span className="flex items-center gap-1 text-red-500 bg-red-500/10 px-2 py-1 rounded text-[8px] font-black animate-pulse">
+                    <ShieldAlert className="w-2 h-2" /> SEM GESTOR DEFINIDO
                   </span>
                 )}
               </div>

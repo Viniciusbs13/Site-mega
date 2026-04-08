@@ -11,7 +11,7 @@ interface SalesViewProps {
   clients: Client[];
   currentUser: User;
   onUpdateGoal: (updates: Partial<SalesGoal>) => void;
-  onRegisterSale: (userId: string, value: number, clientName: string, planName: string, services: string[]) => void;
+  onRegisterSale: (userId: string, value: number, clientName: string, planName: string, services: string[], videoQuantity: number) => void;
   onUpdateUserGoal: (userId: string, personalGoal: number, superGoal: number) => void;
   onUpdateClientNotes: (clientId: string, closingNotes: string) => void;
 }
@@ -23,6 +23,7 @@ const SalesView: React.FC<SalesViewProps> = ({
   const [saleValue, setSaleValue] = useState<string>('');
   const [newClientName, setNewClientName] = useState('');
   const [planName, setPlanName] = useState('');
+  const [videoQuantity, setVideoQuantity] = useState<string>('');
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
 
@@ -49,13 +50,15 @@ const SalesView: React.FC<SalesViewProps> = ({
 
   const handleConfirmSale = () => {
     const val = parseFloat(saleValue);
+    const vQty = parseInt(videoQuantity) || 0;
     if (isNaN(val) || val <= 0 || !newClientName || !planName) return;
     
-    onRegisterSale(currentUser.id, val, newClientName, planName, selectedServices);
+    onRegisterSale(currentUser.id, val, newClientName, planName, selectedServices, vQty);
     dbService.triggerCelebration(currentUser.name, val);
     setSaleValue('');
     setNewClientName('');
     setPlanName('');
+    setVideoQuantity('');
     setSelectedServices([]);
   };
 
@@ -125,6 +128,17 @@ const SalesView: React.FC<SalesViewProps> = ({
                         className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#14b8a6]"
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-600 uppercase">Quantidade de Vídeos</label>
+                    <input 
+                      type="number"
+                      value={videoQuantity}
+                      onChange={(e) => setVideoQuantity(e.target.value)}
+                      placeholder="Ex: 12"
+                      className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#14b8a6]"
+                    />
                   </div>
                   
                   <div className="space-y-2">
