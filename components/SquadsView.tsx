@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Client, User, DefaultUserRole } from '../types';
 import { MANAGERS } from '../constants';
-import { Briefcase, TrendingUp, Pause, Play, Trash2, ShieldAlert } from 'lucide-react';
+import { Briefcase, TrendingUp, Pause, Play, Trash2, ShieldAlert, Zap, Video, Camera, Share2, UserPlus } from 'lucide-react';
 
 interface SquadsViewProps {
   clients: Client[];
@@ -17,9 +17,25 @@ const SquadsView: React.FC<SquadsViewProps> = ({ clients, team, currentUser, onA
   const [view, setView] = useState<'ACTIVE' | 'PAUSED'>('ACTIVE');
   const isCEO = currentUser.role === DefaultUserRole.CEO;
 
-  const managers = team.filter(u => u.role === DefaultUserRole.MANAGER || u.role === DefaultUserRole.SOCIAL_MEDIA || u.role === DefaultUserRole.EDITOR || u.role === DefaultUserRole.CAPTADOR);
+  const managers = team.filter(u => 
+    u.role === DefaultUserRole.MANAGER || 
+    u.role === DefaultUserRole.ACCOUNT ||
+    u.role === DefaultUserRole.SOCIAL_MEDIA || 
+    u.role === DefaultUserRole.EDITOR || 
+    u.role === DefaultUserRole.CAPTADOR
+  );
 
   const filteredClients = clients.filter(c => view === 'ACTIVE' ? !c.isPaused : c.isPaused);
+
+  const getServiceIcon = (service: string) => {
+    switch (service) {
+      case 'META_ADS': return <Zap className="w-3 h-3 text-amber-400" title="Meta Ads" />;
+      case 'EDICAO': return <Video className="w-3 h-3 text-blue-400" title="Edição" />;
+      case 'CAPTACAO': return <Camera className="w-3 h-3 text-purple-400" title="Captação" />;
+      case 'SOCIAL_MEDIA': return <Share2 className="w-3 h-3 text-pink-400" title="Social Media" />;
+      default: return null;
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -48,16 +64,43 @@ const SquadsView: React.FC<SquadsViewProps> = ({ clients, team, currentUser, onA
       <div className="grid grid-cols-1 gap-6">
         {filteredClients.map(client => (
           <div key={client.id} className={`bg-[#111] border rounded-[40px] p-8 flex flex-col md:flex-row md:items-center justify-between gap-8 group transition-all ${client.isPaused ? 'border-amber-500/20 grayscale opacity-70' : 'border-white/5 hover:border-teal-500/20 shadow-2xl shadow-black/40'}`}>
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 space-y-3">
               <div className="flex items-center gap-3">
                 <span className={`w-3 h-3 rounded-full ${client.statusFlag === 'GREEN' ? 'bg-green-500' : client.statusFlag === 'YELLOW' ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
-                <h4 className="text-2xl font-black text-white uppercase italic tracking-tighter">{client.name}</h4>
+                <div>
+                  <h4 className="text-2xl font-black text-white uppercase italic tracking-tighter">{client.name}</h4>
+                  <p className="text-[10px] font-black text-teal-500 uppercase tracking-widest">{client.planName || 'Plano não definido'}</p>
+                </div>
                 {client.isPaused && <span className="bg-amber-500/10 text-amber-500 text-[8px] px-2 py-0.5 rounded font-black uppercase">Trabalho Congelado</span>}
               </div>
-              <div className="flex items-center gap-6 text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+              
+              <div className="flex flex-wrap items-center gap-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">
                 {isCEO && <span className="flex items-center gap-2 text-teal-500"><TrendingUp className="w-3 h-3"/> R$ {client.contractValue.toLocaleString()}</span>}
                 <span className="flex items-center gap-2"><Briefcase className="w-3 h-3"/> {client.industry}</span>
                 <span>Progresso: {client.progress}%</span>
+                
+                <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                  <span className="text-[8px] text-gray-400 mr-1">Serviços:</span>
+                  {client.services && client.services.length > 0 ? (
+                    client.services.map(s => (
+                      <div key={s} className="flex items-center gap-1">
+                        {getServiceIcon(s)}
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-[8px] italic lowercase">nenhum</span>
+                  )}
+                </div>
+
+                {client.services?.includes('META_ADS') ? (
+                  <span className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-2 py-1 rounded text-[8px] font-black">
+                    <Zap className="w-2 h-2" /> REQUER GESTOR
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-blue-400 bg-blue-400/10 px-2 py-1 rounded text-[8px] font-black">
+                    <UserPlus className="w-2 h-2" /> REQUER ACCOUNT
+                  </span>
+                )}
               </div>
             </div>
 

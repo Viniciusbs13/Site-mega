@@ -1,13 +1,14 @@
 
 import React, { useState } from 'react';
 import { User, UserRole, DefaultUserRole } from '../types';
-import { Mail, ShieldCheck, UserCog, UserPlus, Trash2, ShieldPlus, X, Power, PowerOff, AtSign } from 'lucide-react';
+import { Mail, ShieldCheck, UserCog, UserPlus, Trash2, ShieldPlus, X, Power, PowerOff, AtSign, CheckSquare, Target, MessageSquare, FolderOpen, Calendar } from 'lucide-react';
 
 interface TeamViewProps {
   team: User[];
   currentUser: User;
   availableRoles: string[];
   onUpdateRole: (userId: string, newRole: UserRole) => void;
+  onUpdateUser: (user: User) => void;
   onAddMember: (name: string, role: UserRole, email: string) => void;
   onRemoveMember: (userId: string) => void;
   onAddRole: (roleName: string) => void;
@@ -15,7 +16,7 @@ interface TeamViewProps {
 }
 
 const TeamView: React.FC<TeamViewProps> = ({ 
-  team, currentUser, availableRoles, onUpdateRole, onAddMember, onRemoveMember, onAddRole, onToggleActive 
+  team, currentUser, availableRoles, onUpdateRole, onUpdateUser, onAddMember, onRemoveMember, onAddRole, onToggleActive 
 }) => {
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [isAddingRole, setIsAddingRole] = useState(false);
@@ -25,6 +26,15 @@ const TeamView: React.FC<TeamViewProps> = ({
   const [newRoleName, setNewRoleName] = useState('');
 
   const isCEO = currentUser.role === DefaultUserRole.CEO;
+
+  const handleTogglePermission = (user: User, permission: string) => {
+    const current = user.customPermissions || [];
+    const next = current.includes(permission)
+      ? current.filter(p => p !== permission)
+      : [...current, permission];
+    
+    onUpdateUser({ ...user, customPermissions: next });
+  };
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,7 +210,7 @@ const TeamView: React.FC<TeamViewProps> = ({
               )}
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-2 mb-1">
                   <ShieldCheck className="w-3 h-3" /> Nível Operacional
@@ -221,6 +231,33 @@ const TeamView: React.FC<TeamViewProps> = ({
                   </div>
                 )}
               </div>
+
+              {isCEO && member.role !== DefaultUserRole.CEO && (
+                <div className="space-y-3 pt-2 border-t border-white/5">
+                  <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Permissões Adicionais</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'commercial', label: 'Vendas', icon: <Target className="w-3 h-3" /> },
+                      { id: 'service-requests', label: 'Jobs', icon: <MessageSquare className="w-3 h-3" /> },
+                      { id: 'knowledge-base', label: 'Wiki', icon: <FolderOpen className="w-3 h-3" /> },
+                      { id: 'checklists', label: 'Checklists', icon: <Calendar className="w-3 h-3" /> },
+                    ].map(perm => (
+                      <button
+                        key={perm.id}
+                        onClick={() => handleTogglePermission(member, perm.id)}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-[9px] font-black uppercase transition-all ${
+                          member.customPermissions?.includes(perm.id)
+                            ? 'bg-teal-500/10 border-teal-500/30 text-teal-500'
+                            : 'bg-black border-white/5 text-gray-600 hover:border-white/10'
+                        }`}
+                      >
+                        {perm.icon}
+                        {perm.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}

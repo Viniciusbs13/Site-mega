@@ -9,6 +9,7 @@ import ChecklistView from './components/ChecklistView';
 import ManagerWorkspace from './components/ManagerWorkspace';
 import TeamView from './components/TeamView';
 import SalesView from './components/SalesView';
+import ServiceRequestsView from './components/ServiceRequestsView';
 import Auth from './components/Auth';
 import KnowledgeBase from './components/KnowledgeBase';
 import { dbService } from './services/database';
@@ -58,7 +59,8 @@ const App: React.FC = () => {
     },
     drive: [],
     wiki: [],
-    notices: []
+    notices: [],
+    serviceRequests: []
   });
 
   const [team, setTeam] = useState<User[]>([CEO_DEFAULT]);
@@ -106,7 +108,8 @@ const App: React.FC = () => {
         salesGoal: monthData.salesGoal || DEFAULT_MONTH_DATA().salesGoal,
         drive: Array.isArray(monthData.drive) ? monthData.drive : [],
         wiki: Array.isArray(monthData.wiki) ? monthData.wiki : [],
-        notices: Array.isArray(monthData.notices) ? monthData.notices : []
+        notices: Array.isArray(monthData.notices) ? monthData.notices : [],
+        serviceRequests: Array.isArray(monthData.serviceRequests) ? monthData.serviceRequests : []
       };
     });
     return cleanDb;
@@ -209,6 +212,7 @@ const App: React.FC = () => {
     switch (role) {
       case DefaultUserRole.CEO: return 'dashboard';
       case DefaultUserRole.MANAGER: return 'my-workspace';
+      case DefaultUserRole.ACCOUNT: return 'my-workspace';
       case DefaultUserRole.SALES: return 'commercial';
       default: return 'my-workspace';
     }
@@ -374,9 +378,9 @@ const App: React.FC = () => {
           {(() => {
             try {
               switch (activeTab) {
-                case 'dashboard': return <Dashboard clients={currentData.clients.filter(c => !c.isPaused)} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} activities={activities} notices={currentData.notices || []} salesGoal={currentData.salesGoal} />;
+                case 'dashboard': return <Dashboard clients={currentData.clients.filter(c => !c.isPaused)} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} activities={activities} notices={currentData.notices || []} salesGoal={currentData.salesGoal} serviceRequests={currentData.serviceRequests || []} />;
                 case 'knowledge-base': return <KnowledgeBase wiki={currentData.wiki || []} notices={currentData.notices || []} currentUser={currentUser} onUpdateWiki={items => updateCurrentMonthData({ wiki: items })} onUpdateNotices={notices => updateCurrentMonthData({ notices })} />;
-                case 'team': return <TeamView team={team} currentUser={currentUser} availableRoles={availableRoles} onUpdateRole={async (id, r) => { const user = team.find(u => u.id === id); if(user) await handleUpdateUser({ ...user, role: r }); }} onAddMember={async (name, role, email) => { 
+                case 'team': return <TeamView team={team} currentUser={currentUser} availableRoles={availableRoles} onUpdateUser={handleUpdateUser} onUpdateRole={async (id, r) => { const user = team.find(u => u.id === id); if(user) await handleUpdateUser({ ...user, role: r }); }} onAddMember={async (name, role, email) => { 
                   await handleUpdateUser({ id: email.toLowerCase(), name, email: email.toLowerCase(), role, isActive: true }); 
                   // Send invite email
                   try {
@@ -402,7 +406,7 @@ const App: React.FC = () => {
                     clients={currentData.clients} 
                     currentUser={currentUser} 
                     onUpdateGoal={u => updateCurrentMonthData(prev => ({ salesGoal: { ...prev.salesGoal, ...u } }))} 
-                    onRegisterSale={async (uid, val, cname) => { 
+                    onRegisterSale={async (uid, val, cname, pname, services) => { 
                       const seller = team.find(u => u.id === uid);
                       if (seller) {
                         await handleUpdateUser({ ...seller, salesVolume: (seller.salesVolume || 0) + val });
@@ -418,6 +422,9 @@ const App: React.FC = () => {
                         contractValue: val, 
                         statusFlag: 'GREEN', 
                         isPaused: false, 
+                        planName: pname,
+                        services: services,
+                        onboardingDate: new Date().toISOString(),
                         folder: { briefing: '', accessLinks: '', operationalHistory: '' } 
                       }; 
                       await updateCurrentMonthData(prev => ({ 
@@ -437,9 +444,18 @@ const App: React.FC = () => {
                   />
                 );
                 case 'checklists': return <ChecklistView tasks={currentData.tasks} currentUser={currentUser} onAddTask={t => updateCurrentMonthData(prev => ({ tasks: [{ ...t, id: Date.now().toString() } as Task, ...prev.tasks] }))} onRemoveTask={id => updateCurrentMonthData(prev => ({ tasks: prev.tasks.filter(t => t.id !== id) }))} />;
+                case 'service-requests': return (
+                  <ServiceRequestsView 
+                    requests={currentData.serviceRequests || []} 
+                    clients={currentData.clients} 
+                    currentUser={currentUser} 
+                    onAddRequest={req => updateCurrentMonthData(prev => ({ serviceRequests: [{ ...req, id: Date.now().toString(), createdAt: new Date().toISOString(), status: 'PENDING' }, ...(prev.serviceRequests || [])] }))} 
+                    onUpdateStatus={(id, status) => updateCurrentMonthData(prev => ({ serviceRequests: (prev.serviceRequests || []).map(r => r.id === id ? { ...r, status, completedAt: status === 'COMPLETED' ? new Date().toISOString() : undefined } : r) }))} 
+                  />
+                );
                 case 'my-workspace': return <ManagerWorkspace managerId={currentUser.id} clients={currentData.clients} tasks={currentData.tasks} currentUser={currentUser} drive={currentData.drive || []} onUpdateDrive={items => updateCurrentMonthData({ drive: items })} onToggleTask={id => updateCurrentMonthData(prev => ({ tasks: prev.tasks.map(t => t.id === id ? { ...t, status: t.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED' } : t) }))} onUpdateNotes={(id, n) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === id ? { ...c, notes: n } : c) }))} onUpdateStatusFlag={(id, f) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === id ? { ...c, statusFlag: f } : c) }))} onUpdateFolder={(id, f) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === id ? { ...c, folder: { ...c.folder, ...f } } : c) }))} />;
                 case 'clients': return <SquadsView clients={currentData.clients} team={team} currentUser={currentUser} onAssignManager={(cid, mid) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === cid ? { ...c, managerId: mid } : c) }))} onRemoveClient={(cid) => updateCurrentMonthData(prev => ({ clients: prev.clients.filter(c => c.id !== cid) }))} onTogglePauseClient={(cid) => updateCurrentMonthData(prev => ({ clients: prev.clients.map(c => c.id === cid ? { ...c, isPaused: !c.isPaused } : c) }))} />;
-                default: return <Dashboard clients={currentData.clients} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} salesGoal={currentData.salesGoal} />;
+                default: return <Dashboard clients={currentData.clients} tasks={currentData.tasks} currentUser={currentUser} currentMonth={selectedMonth} months={MONTHS.map(m => `${m} ${currentYear}`)} onMonthChange={setSelectedMonth} salesGoal={currentData.salesGoal} serviceRequests={currentData.serviceRequests || []} />;
               }
             } catch (err) {
               return <div className="p-12 text-center text-red-500 font-black flex flex-col items-center gap-4"><AlertTriangle className="w-12 h-12" /><p>Erro ao carregar módulo.</p></div>;

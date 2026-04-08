@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Client, Task, User, DefaultUserRole, Notice, SalesGoal } from '../types';
-import { LayoutDashboard, ArrowRight, ChevronRight, FileText, Clock, AlertTriangle, ShieldAlert, Megaphone, Target, TrendingUp } from 'lucide-react';
+import { Client, Task, User, DefaultUserRole, Notice, SalesGoal, ServiceRequest } from '../types';
+import { LayoutDashboard, ArrowRight, ChevronRight, FileText, Clock, AlertTriangle, ShieldAlert, Megaphone, Target, TrendingUp, MessageSquare } from 'lucide-react';
 
 interface DashboardProps {
   clients: Client[];
@@ -13,9 +13,13 @@ interface DashboardProps {
   activities?: any[];
   notices?: Notice[];
   salesGoal?: SalesGoal;
+  serviceRequests?: ServiceRequest[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ clients, tasks, currentUser, currentMonth, onMonthChange, months, activities = [], notices = [], salesGoal }) => {
+const Dashboard: React.FC<DashboardProps> = ({ 
+  clients, tasks, currentUser, currentMonth, onMonthChange, months, 
+  activities = [], notices = [], salesGoal, serviceRequests = [] 
+}) => {
   const isCEO = currentUser.role === DefaultUserRole.CEO;
   const isSales = currentUser.role === DefaultUserRole.SALES;
   const filteredClients = isCEO ? clients : clients.filter(c => c.managerId === currentUser.id);
@@ -25,6 +29,9 @@ const Dashboard: React.FC<DashboardProps> = ({ clients, tasks, currentUser, curr
   const avgProgress = filteredClients.length ? Math.round(filteredClients.reduce((acc, c) => acc + c.progress, 0) / filteredClients.length) : 0;
 
   const salesProgress = salesGoal ? Math.min(100, Math.round((salesGoal.currentValue / salesGoal.monthlyTarget) * 100)) : 0;
+
+  const pendingRequests = serviceRequests.filter(r => r.status !== 'COMPLETED').length;
+  const overdueRequests = serviceRequests.filter(r => r.status !== 'COMPLETED' && new Date(r.dueDate) < new Date()).length;
 
   const getStatusColor = (flag: string) => {
     if (flag === 'GREEN') return 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]';
@@ -82,10 +89,10 @@ const Dashboard: React.FC<DashboardProps> = ({ clients, tasks, currentUser, curr
                 <p className="text-[8px] md:text-[10px] font-bold text-gray-600 uppercase mb-1 tracking-widest">Contas</p>
                 <p className="text-xl md:text-3xl font-black text-white">{filteredClients.length}</p>
               </div>
-              {(isCEO || isSales) && salesGoal && (
-                <div className="bg-[#0a0a0a] border border-white/5 rounded-xl md:rounded-2xl p-4 md:p-6 col-span-2 md:col-span-1">
+              {salesGoal && (
+                <div className="bg-[#0a0a0a] border border-[#14b8a6]/20 rounded-xl md:rounded-2xl p-4 md:p-6 col-span-2 md:col-span-1">
                   <p className="text-[8px] md:text-[10px] font-bold text-gray-600 uppercase mb-1 tracking-widest flex items-center gap-2">
-                    <Target className="w-3 h-3 text-teal-500" /> Faturamento
+                    <Target className="w-3 h-3 text-teal-500" /> Faturamento Global
                   </p>
                   <p className="text-xl md:text-2xl font-black text-[#14b8a6]">R$ {salesGoal.currentValue.toLocaleString()}</p>
                   <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mt-2">
@@ -108,9 +115,25 @@ const Dashboard: React.FC<DashboardProps> = ({ clients, tasks, currentUser, curr
                 Foco na <br className="hidden md:block"/> Operação.
               </h3>
             </div>
-            <div className="p-3 bg-black/10 rounded-xl">
-               <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Status de Rede</p>
-               <p className="text-[10px] font-bold">Protocolo Seguro</p>
+            <div className="space-y-4 relative z-10">
+              {pendingRequests > 0 && (
+                <div className="p-3 bg-black/10 rounded-xl flex items-center justify-between">
+                  <div>
+                    <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Jobs Pendentes</p>
+                    <p className="text-[10px] font-bold">{pendingRequests} Solicitações</p>
+                  </div>
+                  <MessageSquare className="w-4 h-4 opacity-40" />
+                </div>
+              )}
+              {overdueRequests > 0 && (
+                <div className="p-3 bg-red-500/20 rounded-xl flex items-center justify-between border border-red-500/20">
+                  <div>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-red-900">Atrasados</p>
+                    <p className="text-[10px] font-bold text-red-900">{overdueRequests} Jobs</p>
+                  </div>
+                  <AlertTriangle className="w-4 h-4 text-red-900" />
+                </div>
+              )}
             </div>
           </div>
 

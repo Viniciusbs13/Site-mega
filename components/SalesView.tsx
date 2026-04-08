@@ -11,7 +11,7 @@ interface SalesViewProps {
   clients: Client[];
   currentUser: User;
   onUpdateGoal: (updates: Partial<SalesGoal>) => void;
-  onRegisterSale: (userId: string, value: number, clientName: string) => void;
+  onRegisterSale: (userId: string, value: number, clientName: string, planName: string, services: string[]) => void;
   onUpdateUserGoal: (userId: string, personalGoal: number, superGoal: number) => void;
   onUpdateClientNotes: (clientId: string, closingNotes: string) => void;
 }
@@ -22,7 +22,22 @@ const SalesView: React.FC<SalesViewProps> = ({
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [saleValue, setSaleValue] = useState<string>('');
   const [newClientName, setNewClientName] = useState('');
+  const [planName, setPlanName] = useState('');
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
+
+  const availableServices = [
+    { id: 'META_ADS', label: 'Meta Ads (Tráfego Pago)' },
+    { id: 'EDICAO', label: 'Edição de Vídeo' },
+    { id: 'CAPTACAO', label: 'Captação de Conteúdo' },
+    { id: 'SOCIAL_MEDIA', label: 'Social Media' }
+  ];
+
+  const toggleService = (id: string) => {
+    setSelectedServices(prev => 
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+  };
 
   /* Fixed: Using DefaultUserRole enum instead of UserRole type alias */
   const isCEO = currentUser.role === DefaultUserRole.CEO;
@@ -34,12 +49,14 @@ const SalesView: React.FC<SalesViewProps> = ({
 
   const handleConfirmSale = () => {
     const val = parseFloat(saleValue);
-    if (isNaN(val) || val <= 0 || !newClientName) return;
+    if (isNaN(val) || val <= 0 || !newClientName || !planName) return;
     
-    onRegisterSale(currentUser.id, val, newClientName);
+    onRegisterSale(currentUser.id, val, newClientName, planName, selectedServices);
     dbService.triggerCelebration(currentUser.name, val);
     setSaleValue('');
     setNewClientName('');
+    setPlanName('');
+    setSelectedServices([]);
   };
 
   const copyToClipboard = () => {
@@ -87,16 +104,49 @@ const SalesView: React.FC<SalesViewProps> = ({
                   <DollarSign className="w-4 h-4 text-[#14b8a6]" /> Lançar Nova Vitória
                 </h4>
                 <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-600 uppercase">Nome da Empresa/Cliente</label>
-                    <input 
-                      type="text"
-                      value={newClientName}
-                      onChange={(e) => setNewClientName(e.target.value)}
-                      placeholder="Ex: TechNova LTDA"
-                      className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#14b8a6]"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-600 uppercase">Nome da Empresa/Cliente</label>
+                      <input 
+                        type="text"
+                        value={newClientName}
+                        onChange={(e) => setNewClientName(e.target.value)}
+                        placeholder="Ex: TechNova LTDA"
+                        className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#14b8a6]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-600 uppercase">Nome do Plano</label>
+                      <input 
+                        type="text"
+                        value={planName}
+                        onChange={(e) => setPlanName(e.target.value)}
+                        placeholder="Ex: Plano Premium"
+                        className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#14b8a6]"
+                      />
+                    </div>
                   </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-600 uppercase">Serviços Inclusos</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {availableServices.map(service => (
+                        <button
+                          key={service.id}
+                          onClick={() => toggleService(service.id)}
+                          className={`flex items-center gap-2 p-3 rounded-xl border text-[10px] font-bold transition-all ${
+                            selectedServices.includes(service.id)
+                              ? 'bg-[#14b8a6]/10 border-[#14b8a6] text-[#14b8a6]'
+                              : 'bg-black border-white/5 text-gray-500 hover:border-white/20'
+                          }`}
+                        >
+                          <div className={`w-3 h-3 rounded-sm border ${selectedServices.includes(service.id) ? 'bg-[#14b8a6] border-[#14b8a6]' : 'border-gray-600'}`} />
+                          {service.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-600 uppercase">Valor do Contrato</label>
                     <input 

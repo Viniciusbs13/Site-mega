@@ -181,6 +181,10 @@ const Auth: React.FC<AuthProps> = ({ team, onLogin, onUpdateUser }) => {
 
         {mode === 'LOGIN' && !targetUser && (
           <div className="space-y-6">
+            <div className="p-4 bg-teal-500/5 border border-teal-500/20 rounded-2xl">
+              <p className="text-[9px] text-teal-500 font-black uppercase leading-tight">Dica para Diretoria</p>
+              <p className="text-[8px] text-gray-500 font-medium mt-1 uppercase">Use o Login com Google para garantir permissões totais de administração.</p>
+            </div>
             <form onSubmit={handleInitialCheck} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-2">Email Corporativo</label>

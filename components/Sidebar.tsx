@@ -23,7 +23,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   isOpen, onClose, team
 }) => {
   const [lastSyncTime, setLastSyncTime] = useState<string>(new Date().toLocaleTimeString());
-  const filteredNav = NAVIGATION_ITEMS.filter(item => (item.roles as string[]).includes(currentUser.role));
+  const filteredNav = NAVIGATION_ITEMS.filter(item => 
+    (item.roles as string[]).includes(currentUser.role) || 
+    (currentUser.customPermissions || []).includes(item.id)
+  );
 
   const activeUsers = team.filter(u => 
     u.isActive && 

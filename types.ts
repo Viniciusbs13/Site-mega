@@ -2,6 +2,7 @@
 export enum DefaultUserRole {
   CEO = 'CEO',
   MANAGER = 'GESTOR_TRAFEGO',
+  ACCOUNT = 'ACCOUNT_MANAGER',
   SALES = 'VENDEDOR',
   SOCIAL_MEDIA = 'SOCIAL_MEDIA',
   EDITOR = 'EDITOR_VIDEO',
@@ -36,6 +37,7 @@ export interface User {
   password?: string;
   role: UserRole;
   isActive: boolean;
+  customPermissions?: string[]; // e.g. ['service-requests', 'commercial']
   avatar?: string;
   salesCount?: number;
   salesVolume?: number;
@@ -64,6 +66,9 @@ export interface Client {
   statusFlag: ClientStatus;
   folder?: ClientFolder;
   isPaused?: boolean;
+  planName?: string;
+  services?: string[]; // e.g. ['META_ADS', 'EDICAO', 'CAPTACAO']
+  onboardingDate?: string;
 }
 
 export interface Task {
@@ -103,6 +108,20 @@ export interface Notice {
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
+export interface ServiceRequest {
+  id: string;
+  clientId: string;
+  clientName: string;
+  requesterId: string;
+  requesterName: string;
+  type: 'EDICAO' | 'CAPTACAO';
+  description: string;
+  dueDate: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE';
+  createdAt: string;
+  completedAt?: string;
+}
+
 export interface MonthlyData {
   [monthYear: string]: {
     clients: Client[];
@@ -112,6 +131,7 @@ export interface MonthlyData {
     drive?: DriveItem[];
     wiki?: DriveItem[];
     notices?: Notice[];
+    serviceRequests?: ServiceRequest[];
   };
 }
 
